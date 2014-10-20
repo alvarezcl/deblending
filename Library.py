@@ -62,7 +62,7 @@ def add_noise(image, noise_type=galsim.PoissonNoise, seed=None, sky_level=0):
     else:
         raise ValueError("Not using poisson noise in your image.")
         
-# Residual function for fitting one model object to the data
+# Residual function for fitting one model object to the data.
 def residual_1_obj(param, data_image, sky_level, x_len, y_len, pixel_scale, 
                    galtype,n):
                        
@@ -77,5 +77,11 @@ def residual_1_obj(param, data_image, sky_level, x_len, y_len, pixel_scale,
                           x_len=x_len,y_len=y_len,scale=pixel_scale)
     
     return (image-data_image).array.ravel()
-    
-    
+
+# Convert python file to ipython notebook document format.    
+def to_ipynb(infile,outfile):
+    # infile; input python file <foo.py>
+    # outfile; output python file <foo.ipynb>
+    import IPython.nbformat.current as nbf
+    nb = nbf.read(open(infile, 'r'), 'py')
+    nbf.write(nb, open(outfile, 'w'), 'ipynb')

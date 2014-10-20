@@ -13,7 +13,7 @@ import matplotlib.gridspec as gridspec
 import pandas as pd
 
 # <codecell>
-
+# Create a blend, deblend, then estimate ellipticity of deblended objects.
 def main(argv,plot=False):
     
     # Parameters for object a
@@ -55,9 +55,7 @@ def main(argv,plot=False):
     # psf properties
     psf_flag = False
     beta = 3
-    fwhm_psf = 0.6
-    
-    # <codecell>
+    fwhm_psf = 0.6    
     
     # Create the objects and combine them
     # Use photon shooting for now
@@ -73,9 +71,7 @@ def main(argv,plot=False):
                                     method=method, seed=seed_2)
     
     tot_image = image_a + image_b
-    
-    # <codecell>
-    
+        
     # Deblend the resulting blend
     peak1 = (x0_a,y0_a)
     peak2 = (x0_b,y0_b)
@@ -84,7 +80,6 @@ def main(argv,plot=False):
                  
     templates, template_fractions, children = deblend.deblend(tot_image.array, peaks_pix)
     
-    # <codecell>
     # Now we can run the fitter to estimate the shape of the children
     # -----------------------------------------------------------------------    
     # Estimate the parameters of the image.
@@ -137,7 +132,6 @@ def main(argv,plot=False):
                                        result_b.params['y0'].value,
                                        x_len=x_len,y_len=y_len,scale=pixel_scale,galtype_gal=sersic_func,sersic_index=n_b)
     
-    # <codecell>
     if plot != False:
         gs = gridspec.GridSpec(2,8)                                   
         fig = plt.figure(figsize=(15,11))
@@ -163,6 +157,7 @@ def main(argv,plot=False):
     
     return residual                    
 
+
 # <codecell>
 # Simple function that runs a loop over the main function above and plots
 # the bias on ellipticities.    
@@ -171,15 +166,30 @@ def run_sample_batch(num_trials):
     for i in xrange(0,num_trials):
         residuals_e = main(0,plot=False)
         results.append(residuals_e.values)
-        
+    
+    sqr_N = np.sqrt(num_trials)    
     results = pd.DataFrame(results,columns=['e1_ar','e2_ar','e1_br','e2_br'])
     stats = np.array([[np.mean(results['e1_ar']),np.mean(results['e2_ar']),np.mean(results['e1_br']),np.mean(results['e2_br'])],
-                      [np.std(results['e1_ar']), np.std(results['e2_ar']), np.std(results['e1_br']), np.std(results['e2_br'])]])
-    stats = pd.DataFrame(stats,columns=['e1_ar','e2_ar','e1_br','e2_br'],index=['mean','std_dev'])                  
+                      [np.std(results['e1_ar']), np.std(results['e2_ar']), np.std(results['e1_br']), np.std(results['e2_br'])],
+                      [np.std(results['e1_ar'])/sqr_N, np.std(results['e2_ar'])/sqr_N, np.std(results['e1_br'])/sqr_N, np.std(results['e2_br'])/sqr_N]])
+    stats = pd.DataFrame(stats,columns=['e1_ar','e2_ar','e1_br','e2_br'],index=['mean','sigma_data','sigma_mean'])                  
+
     # Histogram the data TODO    
+    bin_nums = num_trials/20;
+    gs = gridspec.GridSpec(2,2)                                   
+    fig = plt.figure(figsize=(15,11))
+    fs = 17
+    plt.suptitle('Histograms of Ellipticity Residuals',fontsize=fs)
+    ax1 = fig.add_subplot(gs[0,0])
+    a = ax1.hist(results['e1_ar'],bins=bin_nums,histtype=u'step'); plt.title('$e1_a$ Residual'); plt.xlabel('Ellipticity Residual',fontsize=fs); plt.ylabel('Occurrence',fontsize=fs)
+    ax2 = fig.add_subplot(gs[1,0])
+    b = ax2.hist(results['e2_ar'],bins=bin_nums,histtype=u'step'); plt.title('$e2_a$ Residual'); plt.xlabel('Ellipticity Residual',fontsize=fs); plt.ylabel('Occurrence',fontsize=fs)
+    ax3 = fig.add_subplot(gs[0,1])
+    c = ax3.hist(results['e1_br'],bins=bin_nums,histtype=u'step'); plt.title('$e1_b$ Residual'); plt.xlabel('Ellipticity Residual',fontsize=fs); plt.ylabel('Occurrence',fontsize=fs)
+    ax4 = fig.add_subplot(gs[1,1])
+    d = ax4.hist(results['e2_br'],bins=bin_nums,histtype=u'step'); plt.title('$e2_b$ Residual'); plt.xlabel('Ellipticity Residual',fontsize=fs); plt.ylabel('Occurrence',fontsize=fs)        
     
-    return results, stats
+    return results, stats, fig
 
 if __name__ == '__main__':
-    main(sys.argv)
-    
+    main(sys.argv)    
