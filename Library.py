@@ -166,7 +166,7 @@ def run_2_galaxy_full_params_simple(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     # Extract params that minimize the difference of the data from the model.
     result = lmfit.minimize(residual_func_simple, parameters, args=(image, sky_level, x_len, y_len, pixel_scale, galtype_a, n_a, galtype_b, n_b))                                   
                                                                       
-    return image_no_noise, image_noise, best_fit_a+best_fit_b, result
+    return image_no_noise, image_noise, result
 
 # Convert python file to ipython notebook document format.    
 def to_ipynb(infile,outfile):
