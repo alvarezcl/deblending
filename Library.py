@@ -108,7 +108,7 @@ def residual_func_simple(param, data_image, sky_level, x_len, y_len, pixel_scale
     if sky_level > 10:        
         return (data_image-image).array.ravel()/np.sqrt(sky_level + image.array).ravel()
     else:
-        return (data_image-image).array.ravel()/200
+        return (data_image-image).array.ravel()
         
 # Function definition to return the original data array, best-fit array,
 # residual, and correlation matrix with differences and error on e1 and e2.
