@@ -174,4 +174,4 @@ def to_ipynb(infile,outfile):
     # outfile; output python file <foo.ipynb>
     import IPython.nbformat.current as nbf
     nb = nbf.read(open(infile, 'r'), 'py')
-    nbf.write(nb, open(outfile, 'w'), 'ipynb')
+    nbf.write(nb, open(outfile, 'w'), 'ipynb')    
