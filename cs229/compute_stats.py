@@ -112,12 +112,14 @@ def compute_mtwenty(matrix, peak):
     
     f_tot = sum(sum(matrix))
     info = {}
+    
     # Obtain the total second moment
     for (i,j), value in np.ndenumerate(matrix):
         m_tot = m_tot + value*((i - peak[0])**2 + (j - peak[1])**2)
         # Store each coordinate and pixel flux value as a dict pairing
         info[(i,j)] = value
-    # Obtain the brightest 20 percent    
+    
+    
     # Sort the matrix indices by decreasing
     sorted_arr = sorted(info,key=info.get)
     sorted_arr = sorted_arr[::-1]
@@ -133,18 +135,31 @@ def compute_mtwenty(matrix, peak):
         else:
             m = m + matrix[sorted_arr[k]]*((sorted_arr[k][0]-peak[0])**2 + (sorted_arr[k][1] - peak[1])**2)
                 
-    return m/m_tot
+    return m_tot, sorted_arr
 
 # Run through every pixel and compute m_20 to find the min value.
 def find_min_m20(matrix,x_len,y_len):
-    #matrix = extract_sub(matrix,threshold)
-    m_20_mat = np.zeros(matrix.shape)
+    
+    # Obtain the m_tot matrix
+    m_tot_mat = np.zeros(matrix.shape)
     for (i,j), value in np.ndenumerate(matrix):
-        if math.isnan(compute_mtwenty(matrix,[i,j])):
-            pdb.set_trace()
-        m_20_mat[i,j] = compute_mtwenty(matrix,[i,j])
-    x,y = np.where(m_20_mat==np.min(m_20_mat))        
-    return m_20_mat, np.min(m_20_mat), (int(x[0]-x_len/2),int(y[0]-y_len/2))
+        m_tot, sorted_arr = compute_mtwenty(matrix,[i,j])
+        m_tot_mat[i,j] = m_tot
+    x,y = np.where(m_tot_mat==np.min(m_tot_mat))
+    
+    f_tot = sum(sum(matrix))
+    flux = 0
+    m = 0
+    # Obtain m for 0.2 flux    
+    for k in xrange(0,len(sorted_arr)):
+        flux = flux + matrix[sorted_arr[k]]
+        if flux > 0.2*f_tot:
+            break
+        else:
+            m = m + matrix[sorted_arr[k]]*((sorted_arr[k][0]-x[0])**2 + (sorted_arr[k][1] - y[0])**2)
+    
+        
+    return np.log(m/np.min(m_tot_mat)), np.log(m/m_tot_mat), [x[0]-x_len/2,y[0]-y_len/2]
         
 def extract_sub(matrix,threshold):
     x,y = np.where(matrix>threshold)
@@ -176,13 +191,16 @@ def extract_sub_regions(matrix,percent,sigma_smooth):
     seg_im = np.copy(matrix)
     # Obtain the flux threshold value
     flux_thresh = percent*matrix.max()
+    # Obtain the seg_im
+    seg_im[seg_im<flux_thresh] = 0
     # Smooth the image
     seg_im = mh.gaussian_filter(np.copy(seg_im),sigma_smooth)
     # Convert to binary image
-    seg_im = seg_im>=flux_thresh
+    seg_im = seg_im>=seg_im.mean()
     # Use mahotas to find centroids and labels
     labeled, n_centroids = mh.label(seg_im)
     if n_centroids == 0:
+        pdb.set_trace()
         raise ValueError('Your image is empty.')
     # labeled is a 2d array of integers corresponding to regions
     regions = []
@@ -207,116 +225,32 @@ def compute_mm(matrix,num_percents,min_pix,sigma_smooth):
     percents = np.linspace(0.1,0.95,num_percents)
     for p in percents:
         regions_i, centroid_i = extract_sub_regions(matrix,p,sigma_smooth)
-        
-        if centroid_i == 0:
-            pdb.set_trace()
-        
-        if centroid_i == 1:
-            R_val.append(1.0)
-            n_centroids.append(centroid_i)
-            regions.append(regions_i)
-
-        if centroid_i == 2:
-            size_0 = len(regions_i[0][np.nonzero(regions_i[0])])
-            size_1 = len(regions_i[1][np.nonzero(regions_i[1])])
-            numerator = max(size_0,size_1)
-            denominator = min(size_0,size_1)
-            
-            if denominator <= min_pix: # Hit a low probability spike 
-                R_val.append(1.0)
-                n_centroids.append(centroid_i-1)
-                if size_1 > size_0:
-                    regions.append([regions_i[1]])
-                else:
-                    regions.append([regions_i[0]])
-            else:
-                R_val.append(1.0/(1 + numerator/denominator))
-                n_centroids.append(centroid_i)
-                regions.append(regions_i)
-                
-        if centroid_i == 3:
-            size_0 = len(regions_i[0][np.nonzero(regions_i[0])])
-            size_1 = len(regions_i[1][np.nonzero(regions_i[1])])            
-            size_2 = len(regions_i[2][np.nonzero(regions_i[2])])
-            
-            if size_0 <= min_pix: # Hit a low probability spike
-                centroid_i = centroid_i - 1
-                numerator = max(size_1,size_2)
-                denominator = min(size_1,size_2)
-                if denominator <= min_pix: # Hit a low probability spike 
-                    R_val.append(1.0)
-                    n_centroids.append(centroid_i-1)
-                    if size_1 > size_2:
-                        regions.append([regions_i[1]])
-                        continue
-                    else:
-                        regions.append([regions_i[2]])
-                        continue
-                else:
-                    R_val.append(1.0/(1.0+numerator/denominator))
-                    n_centroids.append(centroid_i)
-                    regions.append([regions_i[1],regions_i[2]])
-                    continue
-                    
-            if size_1 <= min_pix: # Hit a low probability spike
-                centroid_i = centroid_i - 1
-                numerator = max(size_0,size_2)
-                denominator = min(size_0,size_2)
-                if denominator <= min_pix: # Hit a low probability spike 
-                    R_val.append(1.0)
-                    n_centroids.append(centroid_i-1)
-                    if size_2 > size_0:
-                        regions.append([regions_i[2]])
-                        continue
-                    else:
-                        regions.append([regions_i[0]])
-                        continue
-                else:
-                    R_val.append(1.0/(1.0+numerator/denominator))
-                    n_centroids.append(centroid_i)
-                    regions.append([regions_i[0],regions_i[2]])
-                    continue
-              
-            if size_2 <= min_pix: # Hit a low probability spike
-                centroid_i = centroid_i - 1
-                numerator = max(size_0,size_1)
-                denominator = min(size_0,size_1)
-                if denominator <= min_pix: # Hit a low probability spike 
-                    R_val.append(1.0)
-                    n_centroids.append(centroid_i-1)
-                    if size_1 > size_0:
-                        regions.append([regions_i[1]])
-                        continue
-                    else:
-                        regions.append([regions_i[0]])
-                        continue
-                else:
-                    R_val.append(1.0/(1.0+numerator/denominator))
-                    n_centroids.append(centroid_i)
-                    regions.append([regions_i[0],regions_i[1]])
-                    continue
-                    
-            if size_0 > min_pix and size_1 > min_pix and size_2 > min_pix:
-                numerator = max(size_0,size_1,size_2)
-                denominator = min(size_0,size_1,size_2)
-                R_val.append(1.0/(1.0+numerator/denominator))
-                n_centroids.append(centroid_i)
-                regions.append(regions_i)
-                continue
-
-    # The mm stat is the minimum value observed
-    mm = np.min(R_val)
-    index = np.where(R_val==mm)[0]
-    # Assure that index is a scalar
-    if len(index) != 1:
-        index = index[len(index)-1]
-    if index > len(percents)-1:
-        pdb.set_trace()
-    prcentile = percents[index]
+        n_centroids.append(centroid_i)
+        regions.append(regions_i)
+    
+    n_centroids = np.array(n_centroids)
+    regions = np.array(regions)
+    
+    max_n_c = max(n_centroids)
+    indices = np.where(n_centroids==max_n_c)[0]
+    index = indices[len(indices)-1]
     region = regions[index]
-    n_centroid = n_centroids[index]
-    return mm, prcentile, region, n_centroid
-
+    percentile = percents[index]
+    
+    return region, max_n_c, percentile
+    
+def compute_reg_ratio(regions):
+    if len(regions) == 1:
+        return 0
+    elif len(regions) == 2:
+        denominator = max(len(regions[0][np.where(regions[0]!=0)]),len(regions[1][np.where(regions[1]!=0)]))
+        assert denominator != 0
+        return min(len(regions[0][np.where(regions[0]!=0)]),len(regions[1][np.where(regions[1]!=0)]))/denominator
+    else:
+        denominator = max(len(regions[0][np.where(regions[0]!=0)]),len(regions[1][np.where(regions[1]!=0)]),len(regions[2][np.where(regions[2]!=0)])) != 0
+        assert denominator != 0
+        return min(len(regions[0][np.where(regions[0]!=0)]),len(regions[1][np.where(regions[1]!=0)]),len(regions[2][np.where(regions[2]!=0)]))/denominator
+        
 def compute_intensity_ratio(regions):
     if len(regions) == 1:
         return 0
@@ -329,6 +263,76 @@ def compute_intensity_ratio(regions):
         assert denominator != 0
         return numerator/denominator
         
+def convert_to_integers(data,ints):
+    
+    result = np.zeros(data.shape)
+
+    rnge = np.arange(1,ints+1)
+    
+    # Convert gini coefficients
+    low_bnd_gini = data['gini_c'].min(); high_bnd_gini = data['gini_c'].max()
+    gini_interval = np.linspace(low_bnd_gini,high_bnd_gini,ints)
+    # Stop at the second to last value in gini_interval
+    for i in xrange(0,len(gini_interval)-1):
+        lower_val = gini_interval[i]
+        higher_val = gini_interval[i+1]
+        data['gini_c'][np.logical_and(data['gini_c']>=lower_val,data['gini_c']<=higher_val)] = rnge[i]
+    result[:,0] = data['gini_c']
+     
+    # Convert asymmetry coefficients
+    low_bnd_a = data['a_c'].min(); high_bnd_a = data['a_c'].max()
+    a_interval = np.linspace(low_bnd_a,high_bnd_a,ints)
+    # Stop at the second to last value in a_interval
+    for i in xrange(0,len(a_interval)-1):
+        lower_val = a_interval[i]
+        higher_val = a_interval[i+1]
+        data['a_c'][np.logical_and(data['a_c']>=lower_val,data['a_c']<=higher_val)] = rnge[i]
+    result[:,1] = data['a_c']
+        
+    # Convert m20 coefficients
+    low_bnd_m20 = data['m_20'].min(); high_bnd_m20 = data['m_20'].max()
+    m20_interval = np.linspace(low_bnd_m20,high_bnd_m20,ints)
+    # Stop at the second to last value in m20_interval
+    for i in xrange(0,len(m20_interval)-1):
+        lower_val = m20_interval[i]
+        higher_val = m20_interval[i+1]
+        data['m_20'][np.logical_and(data['m_20']>=lower_val,data['m_20']<=higher_val)] = rnge[i]
+    result[:,2] = data['m_20']
+    result[:,3] = data['n_centroids']
+    
+    # Convert area ratios
+    low_bnd_reg = data['reg_ratio'].min(); high_bnd_reg = data['reg_ratio'].max()
+    reg_interval = np.linspace(low_bnd_reg,high_bnd_reg,ints)
+    # Stop at the second to last value in m20_interval
+    for i in xrange(0,len(reg_interval)-1):
+        lower_val = reg_interval[i]
+        higher_val = reg_interval[i+1]
+        data['reg_ratio'][np.logical_and(data['reg_ratio']>=lower_val,data['reg_ratio']<=higher_val)] = rnge[i]
+    result[:,4] = data['reg_ratio']
+    
+    # Convert percentiles
+    low_bnd_p = data['percentile'].min(); high_bnd_p = data['percentile'].max()
+    p_interval = np.linspace(low_bnd_p,high_bnd_p,ints)
+    # Stop at the second to last value in p_interval
+    for i in xrange(0,len(p_interval)-1):
+        lower_val = p_interval[i]
+        higher_val = p_interval[i+1]
+        data['percentile'][np.logical_and(data['percentile']>=lower_val,data['percentile']<=higher_val)] = rnge[i]
+    result[:,5] = data['percentile']            
+    
+    # Convert intensity ratios
+    low_bnd_i = data['intensity_r'].min(); high_bnd_i = data['intensity_r'].max()
+    i_interval = np.linspace(low_bnd_i,high_bnd_i,ints)
+    # Stop at the second to last value in i_interval
+    for i in xrange(0,len(i_interval)-1):
+        lower_val = i_interval[i]
+        higher_val = i_interval[i+1]
+        data['intensity_r'][np.logical_and(data['intensity_r']>=lower_val,data['intensity_r']<=higher_val)] = rnge[i]
+    result[:,6] = data['intensity_r']
+    
+    return pd.DataFrame(result,columns=data.columns)
+
+    return 
 if __name__ == '__main__':
     pass
     

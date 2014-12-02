@@ -13,7 +13,7 @@ def catalog(num,x_len,y_len,pixel_scale):
         
     # Object Parameters
     low_flux = 100000; high_flux = 3*low_flux    # Counts
-    low_hlr = 5*pixel_scale; high_hlr = 2.5*low_hlr # Arcsec
+    low_hlr = 2.5*pixel_scale; high_hlr = 2.5*low_hlr # Arcsec
     low_e1 = -0.5; high_e1 = -low_e1
     low_e2 = -0.5; high_e2 = -low_e2
     low_x0 = (-x_len/4)*pixel_scale; high_x0 = (x_len/4)*pixel_scale          # Arcsec
