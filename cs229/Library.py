@@ -61,6 +61,24 @@ def add_noise(image, noise_type=galsim.PoissonNoise, seed=None, sky_level=0):
         return image
     else:
         raise ValueError("Not using poisson noise in your image.")
+
+# Calculate the SNR for a given noisy image.        
+def calc_SNR(im, texp, sbar, weight):
+    # Work with the image in count per second
+    Di = im.array/texp
+    # Calculate the threshold and mask per second
+    threshold_per_s = weight*np.sqrt(sbar/texp)
+    mask_per_s = Di > threshold_per_s
+    # Calculate SNR using David's formulation
+    nu_s = np.sqrt(texp/sbar)*np.sqrt((mask_per_s*Di*Di).sum())
+    
+    # Now work with the original galsim image (Di*texp=im.array)
+    threshold = weight*np.sqrt(texp*sbar)
+    mask = im.array > threshold
+    # Now calculate the SNR using the original galsim image
+    nu = np.sqrt(1/(sbar*texp))*np.sqrt((mask*im.array**2).sum())
+
+    return nu_s, mask_per_s, nu, mask
         
 # Residual function for fitting one model object to the data.
 def residual_1_obj(param, data_image, sky_level, x_len, y_len, pixel_scale, 

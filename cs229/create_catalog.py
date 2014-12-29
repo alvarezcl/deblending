@@ -4,7 +4,7 @@ import pandas as pd
 import random
 import Library
 
-def catalog(num,x_len,y_len,pixel_scale):
+def catalog(num,x_len,y_len,pixel_scale,rnd=False):
 
     # Image Parameters
     method = 'phot'
@@ -18,7 +18,7 @@ def catalog(num,x_len,y_len,pixel_scale):
     low_e2 = -0.5; high_e2 = -low_e2
     low_x0 = (-x_len/4)*pixel_scale; high_x0 = (x_len/4)*pixel_scale          # Arcsec
     low_y0 = (-y_len/4)*pixel_scale; high_y0 = (y_len/4)*pixel_scale          # Arcsec
-        
+            
     # Store each image in a dict to convert to a pandas panel and
     # store each image label in a dict as well.
     images = {}
@@ -32,8 +32,10 @@ def catalog(num,x_len,y_len,pixel_scale):
         e2_a = random.uniform(low_e2,high_e2)
         x0_a = random.uniform(low_x0,high_x0)
         y0_a = random.uniform(low_y0,high_y0)
+        n_a = random.uniform(0.5,2);
+
         # Image
-        image_a = Library.create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,
+        image_a = Library.create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,sersic_index=n_a,
                                         x_len=x_len,y_len=y_len,method=method,
                                         seed=seed_a)
         
@@ -47,8 +49,9 @@ def catalog(num,x_len,y_len,pixel_scale):
         #y0_b = random.uniform(0,1)*y0_a + np.exp(-y0_a)*random.uniform(-1,1)*(hlr_a)
         x0_b = random.uniform(low_x0,high_x0)
         y0_b = random.uniform(low_y0,high_y0)
+        n_b = random.uniform(0.5,2)
         # Image
-        image_b = Library.create_galaxy(flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,
+        image_b = Library.create_galaxy(flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,sersic_index=n_b,
                                         x_len=x_len,y_len=y_len,method=method,
                                         seed=seed_b)
         
@@ -60,8 +63,9 @@ def catalog(num,x_len,y_len,pixel_scale):
         #y0_c = random.uniform(0,1)*y0_a + np.exp(-y0_a)*random.uniform(-1,1)*(hlr_a)
         x0_c = random.uniform(low_x0,high_x0)
         y0_c = random.uniform(low_y0,high_y0)
+        n_c = random.uniform(0.5,2)
         # Image        
-        image_c = Library.create_galaxy(flux_c,hlr_c,e1_c,e2_c,x0_c,y0_c,
+        image_c = Library.create_galaxy(flux_c,hlr_c,e1_c,e2_c,x0_c,y0_c,sersic_index=n_c,
                                         x_len=x_len,y_len=y_len,method=method,
                                         seed=seed_c)
 
