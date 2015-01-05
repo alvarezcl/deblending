@@ -4,13 +4,15 @@
 # group.
 
 import numpy as np
+import pdb
 
 def deblend(image, peaks):
     work_image = image+1.e-20
     templates = []
     # Step 1: Make symmetric templates
     for peak in peaks:
-        templates.append(np.fmin(work_image, rotate(work_image, peak)))
+        new_im, rot_peaks = rotate(work_image, peak)
+        templates.append(np.fmin(work_image, new_im))
     # Step 2: Calculate relative contribution of each template
     template_sum = reduce(lambda x,y: x+y, templates, 0)
     template_fractions = []
@@ -56,7 +58,7 @@ def rotate(image, peak):
     # and finally, rotate!
     newimage = np.zeros_like(image)
     newimage[ymin:ymax, xmin:xmax] = (image[ymin:ymax, xmin:xmax])[::-1,::-1]
-    return newimage
+    return newimage, rot_pix_center
 
 def test_rotate():
     # test odd-size array
