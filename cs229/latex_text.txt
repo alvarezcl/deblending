@@ -1,0 +1,296 @@
+
+\begin{document}
+
+\preprint{APS/123-QED}
+
+\title{Characterizing Overlapping Galaxies \\Using Machine Learning Techniques}
+\thanks{Patricia Burchat, Mandeep S.S. Gill, Joshua Evan Meyers}%
+
+\author{Luis Alvarez}
+\affiliation{%
+ Stanford University}
+ 
+\date{\today}% It is always \today, today,
+             %  but any date may be explicitly specified
+
+\begin{abstract}
+As next generation telescopes enhance our ability to see dimmer objects in outer space, the number of optically overlapping galaxies in astronomical images increases. Measurements of galaxy shapes must now account for blended objects. This research attempts to study the classification of blended objects using machine learning techniques.
+\end{abstract}
+
+\maketitle
+
+%
+\section{Introduction}
+%
+Gravitational lensing, the bending of light through gravitational fields, 
+provides insight into current problems in cosmology concerning the nature of 
+dark matter and dark energy, mysterious components of the universe that do 
+not emit light yet play a fundamental role in the time evolution of the 
+universe.\\ 
+
+Gravitational lensing studies are able to estimate the amount of dark matter 
+and luminous matter by observing light emitted from galaxies distorted by 
+dark matter; galaxy shapes are 
+the key observables. Optically overlapping galaxies bias shape 
+measurements 
+therefore classifying and resolving blended profiles into the 
+respective 
+components are critical for lensing studies that will collect information on 
+billions of galaxies such as the Large Synoptic Survey Telescope in 2019.
+
+%
+\subsection{Definitions}
+%
+In this paper we use the following terminology:
+\begin{itemize}
+\item A \textit{footprint} describes the entire sky subtracted image an exposure captured after image processing. This usually includes an entire cluster of galaxies; a representative size of the footprint can be 8000 x 8000 pixels.
+\item A \textit{postage stamp} describes a subset of the footprint that bounds a particular object of interest; a representative size is about 30 x 30 pixels depending on the size of the object of interest. 
+\item An \textit{object} will not necessarily be denoted as a galaxy because such an \textit{object} may consist of a blend of two or more distinct galaxies.
+\item Each \textit{object} contains a \textit{profile} or \textit{flux density} that describes the number of counts per pixel. 
+\item The \textit{flux} is the sum of flux values over all pixels, or the total count. 
+\item A \textit{catalog} denotes the set of all objects, with corresponding postage stamps.
+\end{itemize}
+
+%
+\section{Methodology}
+%
+
+%
+\subsection{Goal}
+%
+We aim to predict whether the object in a given postage stamp is composed of two or more galaxies or uniquely one galaxy. 
+%
+\subsection{Data Collection}
+%
+We use an open-source galaxy simulation package called Galsim to simulate astronomical images 
+and are able to create single or blended objects using a number of flux densities and sampling 
+methods. We can simulate a catalog of postage stamps under the real conditions a 
+future survey is likely to encounter. The Point-Spread Function (PSF), the model of the effects 
+of atmospheric turbulence on images and sky-noise, the uncertainty in the brightness of the sky 
+at a given moment during exposure times are modeled in Galsim and give it the power to approximate
+real conditions.
+
+% Simple galsim image 
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.4]{intro_fig.png}
+    \caption{}
+\end{figure}
+
+Using Galsim also gives us the distinct advantage of creating postage stamps 
+of blended and non-blended objects while knowing the classification of each object as a blend 
+or single object, this then allows us to test classification algorithms. We
+begin our classification study in the simplest scenario: no sky noise, no PSF, and maintain each distinct object as a gaussian such that blends are sums of gaussians. Object parameters are distributed uniformly such that the majority of flux does not lie outside the postage stamp. We generate 1000 postage stamps with roughly half blends and non-blends with up to 3 objects in one postage stamp.
+
+
+%
+\subsection{Features}
+%
+We consider a number of non-parametric statistics that identify different properties of the object within a given postage stamp.
+
+%
+\subsubsection{The Gini Coefficent}
+%
+The Gini Coefficent is a metric used more commonly in economics to describe the distribution of 
+wealth in a society\textsuperscript{1}. It was adapted for galaxy morphology classification in 
+2003 to quantify the relative distribution of flux within the pixels associated with the 
+galaxy. Generally speaking, the gini coefficient is zero in an egalitarian society and unity in 
+one individual has all the wealth. Analogously, the gini coefficient measures the spread of 
+light in the postage stamp.\\
+
+For a discrete distribution, the gini coefficient is defined as\textsuperscript{1}:
+\begin{eqnarray}
+G = \frac{1}{2\bar{X}n(n-1)}\sum_{i}^{n}\sum_{j}^n|X_{i}-X{j}|
+\end{eqnarray}
+where $\bar{X}$ is the mean over all pixel flux values, $n$ is the number of pixels in the 
+postage stamp and $X_i$ is the flux in the $ith$ pixel.\\
+We compute the gini coefficient more efficiently by sorting the pixels in increasing order and 
+calculating:
+\begin{eqnarray}
+G = \frac{1}{\bar{X}n(n-1)}\sum_{i}^{n}(2i-n-1)X_{i}
+\end{eqnarray}
+We test to see if the gini coefficient is sensitive to overlapping galaxies.
+
+
+%
+\subsubsection{Asymmetry}
+%
+Highly overlapping galaxies exhibit large asymmetry due luminosity profiles that are 
+rotationally variant\textsuperscript{2}. If a postage stamp of unique overlapping galaxies is 
+rotated 180\degree and then subtracted from the original non-rotated postage stamp, many 
+pixels from the residual image may be non-zero. This simple procedure produces a statistic that 
+identifies whether the object in a given postage stamp is likely to be a blended or a single 
+object. We use two definitions of asymmetry\textsuperscript{2}:
+\begin{eqnarray}
+A_{rms}^2 = \frac{1}{2}\sum_i^n\frac{(X_{org,i} - X_{rot,i})^2}{(X_{org,i})^2}
+\end{eqnarray}
+\begin{eqnarray}
+A_{abs} = \frac{1}{2}\sum_i^n\frac{|X_{org,i} - X_{rot,i}|}{|X_{org,i}|}
+\end{eqnarray}
+
+Where $X_{org,i}$ is the flux count in the $ith$ pixel of the original image,
+$X_{rot,i}$ is the flux count in the $ith$ pixel of the rotated image, and
+$n$ is the number of pixels in the postage stamp. We choose the center of rotation such that $A_{abs}$ is minimized.\\
+Both definitions are operationally similar and are correlated with different characteristics
+of the object in question. For example, $A_{abs}$ is correlated with star forming
+regions\textsuperscript{2}. We go on to use $A_{abs}$ exclusively.
+
+%
+\subsubsection{The Moment of Light}
+%
+
+The total second-order moment, $M_{tot}$, is defined as the flux in each pixel $f_i$ multiplied 
+by the squared distance to the center of the galaxy, summed over all the galaxy pixels.
+We use the following definition\textsuperscript{1}: 
+\begin{eqnarray}
+M_{tot} = \sum_{i}^{n}M_i = \sum_{i}^{n}f_i((x_i-x_c)^2 + (y_i - y_c)^2))
+\end{eqnarray}
+Where $x_i$ and $y_i$ are the coordinates of the ith pixel and
+$x_c$ and $y_c$ are chosen such that $M_{tot}$ is minimize.
+We then use following definition for $M_{20}$ as the normalized
+second order moment of the brightest 20\% of the galaxy’s flux\textsuperscript{1}. 
+To compute M20, we sort the galaxy pixels by flux in decreasing order, sum $M_i$ over the 
+brightest pixels until the sum of the brightest pixels
+equals 20\% of the total galaxy flux, and then normalize by $M_{tot}$:
+\begin{eqnarray}
+M_{20} = \log{\frac{\sum_{i}^{n}M_i}{M_{tot}}}\quad while\ \sum_{i}^{n}f_i < 0.2f_{tot}  
+\end{eqnarray}
+where $f_{tot}$ is the total flux count of all pixels. 
+By setting $x_c$ and $y_c$ to be minimal for the entire postage stamp, Lotz et al. state that $M_{20}$ is senstitive to overlapping galaxies. We go on to test this.
+
+%
+\subsubsection{Centroid Estimation}
+%
+Since blended objects are sums of individual profiles with peaked distributions, a subset of blended profiles with a large enough separation are likely to exhibit multiple peaks. Using a computer vision and image processing library called Mahotas\footnote{mahotas.readthedocs.org}, we are able to identify regions in a postage stamp that are disjoint. For this process, we run through a range of pixel flux values set by the max pixel flux observed, obtain the threshold pixel value, zero all pixel flux values lower than the threshold, smooth the image with a gaussian filter to minimize noisy pixels and identify if disjoint regions are present. We then choose the max number of centroids observed in the iteration: \begin{eqnarray}
+N_c = n_{c,max}
+\end{eqnarray} 
+
+% Feature Figure
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.3]{stats.png}
+    \caption{For sky-noise less images, we compute the features}
+\end{figure}
+%
+
+%
+\subsection{Modeling}
+%
+We choose the following supervised learning methods from the sklearn\footnote{http://scikit-learn.org/stable/supervised_learning.html} for binary classification:
+\begin{itemize}
+\item Multinomial Naive Bayes (MNB)
+\item Linear Logistic Regression (LR)
+\item Support Vector Machine (SVM)
+\item Random Forests (RF)
+\end{itemize}
+We first begin with MNB in order to gauge the quality of the data. Since MNB is a high-bias/low-variance classifier, we take the results with a grain of salt and prepare to do an analysis with LR, SVM, and RF. Because MNB can be bucketed differently, we ask what is the generalization error for differently discretized MNB models.
+
+% Figure for features
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.2]{MNB.png}
+    \caption{}
+\end{figure}
+%
+
+The above figure gives us that 350 buckets provides the lowest estimate of the generalization error.\\
+
+For logistic regression and SVM's, we ask what regularization constant provides the lowest cross-validated generalization error translating to soft vs hard margins. 
+
+% Figure for log reg and SVM's
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.2]{cv_LR_SVM_C.png}
+    \caption{}
+\end{figure}
+%
+We conclude that the soft margin provides the lowest generalization error.\\
+
+Finally, we ask how many decision trees will provide the lowest cross-validated generalization error for random forest estimation.
+
+% Figure for RF
+\begin{figure}[h!]
+    \centering
+    \includegraphics[scale=0.2]{cv_RF.png}
+    \caption{}
+\end{figure}
+%
+
+Analysis of FIG. 5 returns 45 decision trees provide the lowest cross-validated generalization error. We can now use the parameters set by the above analysis to create optimal learning curves.
+
+%
+\subsection{Results}
+%
+
+%
+\subsubsection{Supervised Learning}
+%
+To compute learning curves, we run through a different number of training examples, increasing the number through each iteration, compute the cross-validated training error for each model and plot. The results are as follows:
+
+% Figure for cv on all using updates
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.2]{cv_curve_train_updates.png}
+    \caption{}
+\end{figure}
+%
+
+At lower training numbers, MNB and RF perform well attesting to the strength of MNB in the small training set regime as a high-bias/low-variance classifier and the strength of RF as an ensemble method with high estimation power in any training set regime. As the training set size increases, separability of data might reduce, influencing MNB to perform worse than at the smaller training set regime. Logistic Regression and the SVM converge asymptotically and RF provides the lowest generalization error. We now perform a similar analysis on the test set.\\
+
+Using the parameters defined in our previous analysis, we use our models on our test set to compute learning curves.
+
+% Figure for cv on all using updates for test
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.2]{cv_curve_test_updates.png}
+    \caption{}
+\end{figure}
+
+Comparing the learning curves from our training to the test set returns a similar pattern. RF returns lowest asymptotic generalization error while MNB performs well in the low training set regime.  
+
+%
+\subsubsection{Unsupervised Learning}
+%
+
+Now we ask, for binary classification, does the data show structure such that there exist different modes corresponding to the two classe labels.\\
+
+For each feature that is defined continuously, we use a gaussian mixture model to compute the modes in the data. We input 2 modes corresponding to two binary classes. We overlay the fitted gaussians above the true data corresponding to the blended and non-blended data.
+
+% Figure for GMM on Gini and Asym
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{Gini_c_A_sym_GMM.png}
+    \caption{}
+\end{figure}
+
+% Figure for GMM on m20 and centroid
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{m20_centroid_GMM.png}
+    \caption{}
+\end{figure}
+
+
+
+%
+% ---- Bibliography ----
+%
+\begin{thebibliography}{30}
+%
+\bibitem{lotz:prim:mada}
+Lotz, J., Primack, I., Madau, P.:
+A New Non-Parametric Approach to 
+Galaxy Morphological Classification
+Astron.J.128:163-182, 2004
+
+
+\bibitem{cons:bers:jang}
+Conselice, C., Bershady, M., Jangren, A.:
+The Asymmetry of Galaxies: Physical Morphology 
+for Nearby and High-Redshift Galaxies
+Astrophys,J.529:886, 2000 ApJ
+
+\end{thebibliography}
+
+\end{document}
+
