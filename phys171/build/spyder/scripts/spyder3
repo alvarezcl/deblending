@@ -1,3 +1,0 @@
-#! /usr/bin/python3
-from spyderlib import start_app
-start_app.main()
