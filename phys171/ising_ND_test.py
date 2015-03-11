@@ -1,7 +1,8 @@
 ## Simulate the ising Model in any dimension using the Metropolis Algorithm
-
+from __future__ import division
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import pdb
 
 # First, create the spin arrays in a given dimension
@@ -66,10 +67,12 @@ def fill_coordinates(n,d):
     return result
     
 # Assign spins to an array by using uniform sampling
-def assign_spins(n):
+def assign_spins(n,all_ones=False):
     p = np.random.random_sample(size=(n,))
     p[p >= 0.5] = 1
     p[p < 0.5] = -1
+    if all_ones == True:
+        return np.ones((n,),dtype=np.int8)
     return np.array(p,dtype=np.int8)
    
 # Given a lattice site, return all nearest neighbors coordinates and
@@ -93,8 +96,8 @@ def calc_neighbors(site_i,coord,spins,n,dim,neighbor_coupling):
         minus = site_coord_i - neighbor_coupling
 
         # Implement periodic boundaries
-        if plus > (n-1): plus = plus - n
-        if minus < 0: minus = n - np.abs(minus)
+        if (plus > (n-1)): plus = plus - n
+        if (minus < 0): minus = n - np.abs(minus)
         
         # Store the coordinates
         result_coord[count] = site_coord
@@ -115,7 +118,8 @@ def calc_neighbors(site_i,coord,spins,n,dim,neighbor_coupling):
         
     return np.array(result_coord,dtype=np.int8), np.array(result_spins,dtype=np.int8)
 
-# Calculate the total internal energy of the system
+# Calculate the total internal energy of the system and return the total
+# magnetization per spin
 def calc_energy_config(k,h,
                        coord,spins,n,dim,
                        neighbor):
@@ -136,68 +140,109 @@ def calc_energy_config(k,h,
     # Magnetic energy
     energy_mag = h*np.sum(spins)
     
-    return (-k*energy_NN - energy_mag), np.sum(spins)
+    return (-k*energy_NN - energy_mag), np.sum(spins)/(n**dim)
     
-# Calculate the energy change of flipping one spin
+# Calculate the energy change of flipping one spin at site_i
 def calc_energy_change(site_i,k,h,
                        coord,spins,n,dim,
                        neighbor):
                            
     # Copy from the previous array of spins
     new_spins = np.copy(spins)
+    old_spin = spins[site_i]
     # Flip the spin
-    new_spins[site_i] = -new_spins[site_i]
+    new_spins[site_i] = -old_spin
+    new_spin = new_spins[site_i]
     # Calculate the energy change
     NearNeigh, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,neighbor)
-    energy_change = -2*k*(np.sum(new_spins[site_i]*Near_spins))
+    # A component in the neighbor term with magnetic field term
+    energy_change = -2*k*(np.sum(new_spins[site_i]*Near_spins)) - h*(new_spin-old_spin)
     
     return energy_change, new_spins
     
 if __name__ == '__main__':
     
-    # ---------------------- Initialization ------------------------ #
-    # Parameters
-    kb = 1                # kb = 1.3806503 * 10**(-23)
+    # ---------------------- Initialization --------------------------- #
+
+    # Independent Parameters    
+    kb = 1 # 1.3806503 * 10**(-23)
+    # Temp
+    T = 10**64
+    # Beta
+    B = 1/(kb*T)
     # Coupling Constant
-    J = 2
+    J = 1
     # Magnetic field
-    h = 0
-    # Temperature
-    T = 1
-    # Effective Coupling
-    k = J/(kb*T)
+    H = 0
+    # Chem Potential
+    mu = 1
+    # Effective values
+    k = J*B
+    h = mu*H*B
     # Size of Lattice
-    n = 10
+    n = 30
     # Dimension
     dim = 3
-    # Number of Spins
+    # Number of spins
     spin_num = n**dim
     # Nearest neighbor coupling
     neighbor = 1
-    # RNG
-    rng = np.random.seed(seed=1)
-    
+    # Integer for seed
+    seed_int = 1
+    # Number of MC trials
+    MC_trials = 1000
+
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
     coord = create_coord(n,dim)
     # Assign spins to array
-    spins = assign_spins(spin_num)
+    spins = assign_spins(spin_num,all_ones=True)
+
+    # ---------------------- Initial Magnetization and Energy --------- #
     
-    # ---------------------- Initial Magnetization and Energy --------------#
-    site_i = (n)**2 - 2
-    NN, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,neighbor)    
+    init_energy, tot_mag_per_spin = calc_energy_config(k,h,
+                                                       coord,spins,n,dim,
+                                                       neighbor)    
+    # Change a random site
+    site_i = np.random.randint(0,spin_num)
+    NearN, near_spins = calc_neighbors(site_i,coord,spins,n,dim,neighbor)
     
-    
-    init_energy, total_spin = calc_energy_config(k,h,
-                                                 coord,spins,n,dim,
-                                                 neighbor)
-                                                 
     energy_change, new_spins = calc_energy_change(site_i,k,h,
                                                   coord,spins,n,dim,
                                                   neighbor)
                                                   
-    new_energy, new_tot_spin = calc_energy_config(k,h,
-                                                  coord,new_spins,n,dim,
-                                                  neighbor)
-                                                  
-                    
+    new_energy, new_tot_mag_per_spin = calc_energy_config(k,h,
+                                                          coord,new_spins,n,dim,
+                                                          neighbor)                                              
+     
+    energy_data = []
+    mag_whole = []
+    rejections = 0
+    acceptances = 0
+    N_outer_trials = np.linspace(0,5,100)
+    for m in N_outer_trials:
+        mag = []
+        T = m
+        B = 1/(kb*T)
+        k = J*B
+        h = mu*H*B   
+        for i in xrange(0,MC_trials):
+            site_i = np.random.randint(0,spin_num)
+            energy_change, new_spins = calc_energy_change(site_i,k,h,
+                                                          coord,spins,n,dim,
+                                                          neighbor)
+            energy_data.append(energy_change)                                              
+            if energy_change <= 0:
+                spins = new_spins
+                acceptances = acceptances + 1
+            elif (np.exp(-B*energy_change) > np.random.random()):
+                spins = new_spins
+                acceptances = acceptances + 1
+            else:
+                rejections = rejections + 1
+            mag.append((np.sum(spins)/spin_num))
+        mean_mag = np.sum(mag)/MC_trials                                             
+        mag_whole.append(mean_mag)
+        
+    plt.plot(N_outer_trials,mag_whole)
+    plt.show()
