@@ -15,8 +15,8 @@ def create_coord(n,dim):
 # Create the coordinate array for a given length and dimension
 def fill_coordinates(n,d):
     # Fill array according to length and dimension
-    if (n > 255): raise ValueError("n above resolution limit.")
-    result = np.zeros((n**d,d),dtype=np.int8)
+    if (n > 1000): raise ValueError("n above resolution limit.")
+    result = np.zeros((n**d,d),dtype=np.int16)
     count = 0
     # Store the coordinates of any spin in a 2D array
     # Any nearest neighbor in k dimensions consists of the spin with coordinates
@@ -117,7 +117,7 @@ def calc_neighbors(site_i,coord,spins,n,dim,neighbor_coupling):
         count = count + 1
 
         
-    return np.array(result_coord,dtype=np.int8), np.array(result_spins,dtype=np.int8)
+    return np.array(result_coord,dtype=np.int16), np.array(result_spins,dtype=np.int16)
 
 # Calculate the total internal energy of the system and return the total
 # magnetization per spin
@@ -161,6 +161,171 @@ def calc_energy_change(site_i,k,h,
     
     return energy_change, new_spins
 
+# Given the spins and coordinates, calculate the spin-spin correlation by 
+# choosing s0 to be the center, and running through the lattice axes.
+def calc_spin_spin(coord,spins,n,dim,
+                   neighbor):
+    center_coord = np.floor(n/2)*np.ones(dim,dtype=np.int16)
+    # Obtain the spin value of the center. This will be s_0
+    spin_index_center = np.where(np.all(center_coord==coord,axis=1))[0][0] 
+    s0 = spins[spin_index_center]
+    # Run through all spins at the lattice axes up to some 
+    # distance r to store s0*sr. Let r = n/2 so we reach the boundary
+    spin_spin = []
+    for i in xrange(1,np.int(n/2)):
+        # Obtain the spin values of the ith neighbor (this will have the effect
+        # of running through the lattice axes).
+        NearNeigh, Near_spins = calc_neighbors(spin_index_center,coord,spins,n,dim,
+                                               i)
+        # Average over all the neighbor spins
+        s0si = s0*np.mean(Near_spins)
+        spin_spin.append(s0si)
+    spin_spin = np.array(spin_spin)
+    return spin_spin
+
+# Run the metropolis algorithm 
+def run_Metropolis(T,kb,J,H,mu,
+                   coord,spins,n,dim,
+                   neighbor,
+                   MC_trials,seed_int):
+    print "Beginning Metropolis..."
+    # Set the seed
+    np.random.seed(seed=seed_int)
+    # For magnetization and spin_spin data
+    mag_whole = []
+    spin_spin_whole = {}
+    # For the temperatures of interest
+    for t in T:
+        mag = []
+        B = 1/(kb*t)
+        k = J*B
+        h = mu*H*B
+        # Calculate MC trials and take data for each trial
+        for i in xrange(0,MC_trials):
+            # Choose a random site
+            site_i = np.random.randint(0,spin_num)
+            # Calculate the energy change
+            energy_change, new_spins = calc_energy_change(site_i,k,h,
+                                                          coord,spins,n,dim,
+                                                          neighbor)
+            # Accept if energy change is negative, else check boltzmann weight
+            if energy_change <= 0:
+                spins = new_spins
+            elif (np.exp(-B*energy_change) > np.random.random()):
+                spins = new_spins            
+            # Obtain the magnetization per site
+            mag.append((np.sum(spins)/spin_num))
+        # Obtain the spin-spin correlation
+        spin_spin = calc_spin_spin(coord,spins,n,dim,
+                                   neighbor)
+        # Store the spin-spin correlation at every temperature t
+        spin_spin_whole[str(t)] = spin_spin
+        # Obtain the mean magnetization per site
+        mag_whole.append(np.sum(mag)/MC_trials)
+    # Convert to Pandas Object 
+    pdb.set_trace()                         
+    mag_whole = pd.DataFrame(mag_whole,columns=['mag_whole_met'])
+    spin_spin_whole = pd.DataFrame(spin_spin_whole)
+    print "Ending Metropolis."    
+    return mag_whole, spin_spin_whole
+
+# Run the Wolff Cluster algorithm
+def run_Wolff(T,kb,J,H,mu,
+              coord,spins,n,dim,
+              neighbor,
+              MC_trials,seed_int):
+    print "Beginning Wolff..."
+    # Set the seed
+    np.random.seed(seed=seed_int)
+    # For magnetization and spin_spin data
+    mag_whole = []
+    spin_spin_whole = {}
+    # For temperatures of interest
+    for t in T:
+        mag = []
+        B = 1/(kb*t)
+        k = J*B
+        h = mu*H*B
+        # Keep track of the cluster and the stack
+        stack = []
+        cluster = []
+        # Keep track of spins that have interacted
+        interaction_matrix = np.zeros((n**dim,n**dim),dtype=np.int32)
+        
+        for i in xrange(0,MC_trials):
+            # Choose a random site
+            site_i = np.random.randint(0,spin_num)
+            # Obtain the neighbors and spins
+            NearNeigh, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,
+                                                   neighbor)
+            # Probability of inclusion in cluster for neighbors
+            p = 1 - np.exp(-2*k)
+            # See if each spin is parallel to that at site_i and if they have
+            # interacted
+            # For all neighbor spins
+            for (i,j),val in np.ndenumerate(Near_spins):
+                # Calculate the spin index 
+                val_site = np.where(np.all(NearNeigh[i]==coord,axis=1))[0][0]
+                # Check if the spins are parallel and haven't interacted
+                if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) and
+                (interaction_matrix[site_i,val_site] == 0))):
+                    # Update interaction matrix
+                    interaction_matrix[val_site,site_i] = 1
+                    interaction_matrix[site_i,val_site] = 1
+                    # TODO check if less than or greater than
+                    # Add to cluster and stack then invert spin
+                    if (np.random.random() > p):
+                        cluster.append(val_site)
+                        stack.append(val_site)
+                        spins[val_site] = -spins[val_site]
+
+            # Now while the stack is not empty
+            while (len(stack) > 0):
+                # Remove from the stack
+                site_i = stack.pop()
+                # Redo for each spin in the stack, as long as the stack is
+                # not empty
+                # Obtain the neighbors and spins
+                NearNeigh, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,
+                                                       neighbor)
+                # Probability of inclusion in cluster for neighbors
+                p = 1 - np.exp(-2*k)
+                # See if each spin is parallel to that at site_i and if they have
+                # interacted
+                # For all neighbor spins
+                for (i,j),val in np.ndenumerate(Near_spins):
+                    # Calculate the spin index 
+                    val_site = np.where(np.all(NearNeigh[i]==coord,axis=1))[0][0]
+                    # Check if the spins are parallel and haven't interacted
+                    if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) and
+                    (interaction_matrix[site_i,val_site] == 0))):
+                        # Update interaction matrix
+                        interaction_matrix[val_site,site_i] = 1
+                        interaction_matrix[site_i,val_site] = 1
+                        # TODO check if less than or greater than
+                        # Add to cluster and stack then invert spin
+                        if (np.random.random() > p):
+                            cluster.append(val_site)
+                            stack.append(val_site)
+                            spins[val_site] = -spins[val_site]
+              
+            # Now the stack is empty
+            # Calculate observable on spins
+            mag.append((np.sum(spins)/spin_num))
+        # Obtain the spin-spin correlation
+        spin_spin = calc_spin_spin(coord,spins,n,dim,
+                                   neighbor)
+        # Store the spin-spin correlation at every temperature t
+        spin_spin_whole[str(t)] = spin_spin
+        # Done with MC trials now
+        # Obtain the mean magnetization per site
+        mag_whole.append(np.sum(mag)/MC_trials)
+    # Convert to Pandas Object                                             
+    mag_whole = pd.DataFrame(mag_whole,columns=['mag_whole_wolff'])
+    spin_spin_whole = pd.DataFrame(spin_spin_whole)
+    print "Ending Wolff."    
+    return mag_whole, spin_spin_whole
+
 if __name__ == '__main__':
     
     # ---------------------- Initialization --------------------------- #
@@ -178,7 +343,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 20
+    n = 100
     # Dimension
     dim = 2
     # Number of spins
@@ -188,6 +353,7 @@ if __name__ == '__main__':
     # Integer for seed
     seed_int_one = 1
     seed_int_two = 2
+    seed_int_three = 3
     # Number of MC trials
     MC_trials = 10000
     
@@ -200,35 +366,26 @@ if __name__ == '__main__':
     # Create Spins with Coordinate Array
     coord = create_coord(n,dim)
     # Assign spins to array
-    spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)
-
-    # ---------------------- Initial Magnetization and Energy --------- #
+    spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)                                                  
     
-    init_energy, tot_mag_per_spin = calc_energy_config(k,h,
-                                                       coord,spins,n,dim,
-                                                       neighbor)                                                  
+    # ---------------------- Metropolis ------------------------------- #
+    T_end = 4
+    num_interval = 40
+    T = np.linspace(0.001,T_end,num_interval)
+    mag_whole_met, two_point_met = run_Metropolis(T,kb,J,H,mu,
+                                                  coord,spins,n,dim,
+                                                  neighbor,
+                                                  MC_trials,seed_int_two) 
     
-    T = np.linspace(0.001,5,100)
-    mag_whole = []
-    for t in T:
-        mag = []
-        B = 1/(kb*t)
-        k = J*B
-        h = mu*H*B
-        for i in xrange(0,MC_trials):
-            site_i = np.random.randint(0,spin_num)
-            energy_change, new_spins = calc_energy_change(site_i,k,h,
-                                                          coord,spins,n,dim,
-                                                          neighbor)
-            if energy_change <= 0:
-                spins = new_spins
-            elif (np.exp(-B*energy_change) > np.random.random()):
-                spins = new_spins
-                
-            mag.append((np.sum(spins)/spin_num))
-        mean_mag = np.sum(mag)/MC_trials                                             
-        mag_whole.append(mean_mag)
+    # ---------------------- Wolff Cluster ---------------------------- #
     
-    mag_whole = pd.DataFrame(mag_whole)
-    plt.plot(T,mag_whole)
+    mag_whole_wolff, two_point_wolff = run_Wolff(T,kb,J,H,mu,
+                                                 coord,spins,n,dim,
+                                                 neighbor,
+                                                 MC_trials,seed_int_three)
+        
+    plt.plot(T,mag_whole_met,T,mag_whole_wolff)
+    plt.legend(['Metropolis','Wolff'])
+    plt.xlim([0,T_end])
     plt.show()
+            
