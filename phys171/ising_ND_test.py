@@ -67,7 +67,8 @@ def fill_coordinates(n,d):
     return result
     
 # Assign spins to an array by using uniform sampling
-def assign_spins(n,all_ones=False):
+def assign_spins(n,all_ones=False,seed=0):
+    np.random.seed(seed=seed)
     p = np.random.random_sample(size=(n,))
     p[p >= 0.5] = 1
     p[p < 0.5] = -1
@@ -159,7 +160,7 @@ def calc_energy_change(site_i,k,h,
     energy_change = -2*k*(np.sum(new_spins[site_i]*Near_spins)) - h*(new_spin-old_spin)
     
     return energy_change, new_spins
-    
+
 if __name__ == '__main__':
     
     # ---------------------- Initialization --------------------------- #
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     # Independent Parameters    
     kb = 1 # 1.3806503 * 10**(-23)
     # Temp
-    T = 10**64
+    T = 1
     # Beta
     B = 1/(kb*T)
     # Coupling Constant
@@ -176,73 +177,58 @@ if __name__ == '__main__':
     H = 0
     # Chem Potential
     mu = 1
-    # Effective values
-    k = J*B
-    h = mu*H*B
     # Size of Lattice
-    n = 30
+    n = 20
     # Dimension
-    dim = 3
+    dim = 2
     # Number of spins
     spin_num = n**dim
     # Nearest neighbor coupling
     neighbor = 1
     # Integer for seed
-    seed_int = 1
+    seed_int_one = 1
+    seed_int_two = 2
     # Number of MC trials
-    MC_trials = 1000
+    MC_trials = 10000
+    
+    # Effective values
+    k = J*B
+    h = mu*H*B    
+    
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
     coord = create_coord(n,dim)
     # Assign spins to array
-    spins = assign_spins(spin_num,all_ones=True)
+    spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)
 
     # ---------------------- Initial Magnetization and Energy --------- #
     
     init_energy, tot_mag_per_spin = calc_energy_config(k,h,
                                                        coord,spins,n,dim,
-                                                       neighbor)    
-    # Change a random site
-    site_i = np.random.randint(0,spin_num)
-    NearN, near_spins = calc_neighbors(site_i,coord,spins,n,dim,neighbor)
+                                                       neighbor)                                                  
     
-    energy_change, new_spins = calc_energy_change(site_i,k,h,
-                                                  coord,spins,n,dim,
-                                                  neighbor)
-                                                  
-    new_energy, new_tot_mag_per_spin = calc_energy_config(k,h,
-                                                          coord,new_spins,n,dim,
-                                                          neighbor)                                              
-     
-    energy_data = []
+    T = np.linspace(0.001,5,100)
     mag_whole = []
-    rejections = 0
-    acceptances = 0
-    N_outer_trials = np.linspace(0,5,100)
-    for m in N_outer_trials:
+    for t in T:
         mag = []
-        T = m
-        B = 1/(kb*T)
+        B = 1/(kb*t)
         k = J*B
-        h = mu*H*B   
+        h = mu*H*B
         for i in xrange(0,MC_trials):
             site_i = np.random.randint(0,spin_num)
             energy_change, new_spins = calc_energy_change(site_i,k,h,
                                                           coord,spins,n,dim,
                                                           neighbor)
-            energy_data.append(energy_change)                                              
             if energy_change <= 0:
                 spins = new_spins
-                acceptances = acceptances + 1
             elif (np.exp(-B*energy_change) > np.random.random()):
                 spins = new_spins
-                acceptances = acceptances + 1
-            else:
-                rejections = rejections + 1
+                
             mag.append((np.sum(spins)/spin_num))
         mean_mag = np.sum(mag)/MC_trials                                             
         mag_whole.append(mean_mag)
-        
-    plt.plot(N_outer_trials,mag_whole)
+    
+    mag_whole = pd.DataFrame(mag_whole)
+    plt.plot(T,mag_whole)
     plt.show()
