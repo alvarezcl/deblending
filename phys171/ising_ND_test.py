@@ -222,8 +222,7 @@ def run_Metropolis(T,kb,J,H,mu,
         spin_spin_whole[str(t)] = spin_spin
         # Obtain the mean magnetization per site
         mag_whole.append(np.sum(mag)/MC_trials)
-    # Convert to Pandas Object 
-    pdb.set_trace()                         
+    # Convert to Pandas Object                          
     mag_whole = pd.DataFrame(mag_whole,columns=['mag_whole_met'])
     spin_spin_whole = pd.DataFrame(spin_spin_whole)
     print "Ending Metropolis."    
@@ -355,7 +354,7 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 10000
+    MC_trials = 2000
     
     # Effective values
     k = J*B
@@ -383,9 +382,14 @@ if __name__ == '__main__':
                                                  coord,spins,n,dim,
                                                  neighbor,
                                                  MC_trials,seed_int_three)
-        
+    
+    plt.figure(figsize=(12,8))    
     plt.plot(T,mag_whole_met,T,mag_whole_wolff)
     plt.legend(['Metropolis','Wolff'])
     plt.xlim([0,T_end])
+    
+    plt.figure(figsize=(12,8))
+    plt.plot(xrange(1,np.int(n/2)),two_point_met[str(T[22])],
+             xrange(1,np.int(n/2)),two_point_wolff[str(T[22])])
+    plt.legend(['Metropolis','Wolff'])
     plt.show()
-            
