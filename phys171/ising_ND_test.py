@@ -442,7 +442,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 20
+    n = 40
     # Dimension
     dim = 2
     # Number of spins
@@ -461,8 +461,8 @@ if __name__ == '__main__':
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 1
-    divisor = 1
+    interval = 8
+    divisor = 10
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
@@ -471,9 +471,9 @@ if __name__ == '__main__':
     spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)                                                  
     
     # ---------------------- Metropolis ------------------------------- #
-    T_end = 3
-    num_interval = 4
-    T = np.linspace(2,T_end,num_interval)
+    T_end = 2.4
+    num_interval = 3
+    T = np.linspace(2.26,T_end,num_interval)
 
     mag_whole_met, two_point_met, chi_met, Hc_met = run_Metropolis(T,kb,J,H,mu,
                                                                    coord,spins,n,dim,
@@ -502,14 +502,15 @@ if __name__ == '__main__':
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\frac{<M>}{N}$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
 
-    Temp = T[1]
+    Temp = T[0]
     
     ax2 = fig.add_subplot(gs[10:18,0])
     plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(np.array(xrange(0,n)),(two_point_met[str(Temp)]),'--o',
-             np.array(xrange(0,n)),(two_point_wolff[str(Temp)]),'--o')
+    plt.plot(np.array(xrange(0,n)),np.abs(two_point_met[str(Temp)])[0:n-10],'--o',
+             np.array(xrange(0,n)),np.abs(two_point_wolff[str(Temp)][0:n-10]),'--o',
+             np.array(xrange(0,n)),1/(np.array(xrange(1,n+1))**(1/4)),'-o')
     plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
-    plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
+    plt.legend(['Metropolis','Wolff','True'],prop={'size':fs-5})
 
     ax3 = fig.add_subplot(gs[0:8,1])
     plt.title('Specific Heat',fontsize=fs)
@@ -538,13 +539,13 @@ if __name__ == '__main__':
         chi_w.to_pickle('data/chi_w' + str(n**dim))
         Hc_w.to_pickle('data/Hc_w' + str(n**dim))
     else:
-        mag_whole_met.to_csv('data/mag_whole_met' + str(n**dim) + '.csv')    
-        two_point_met.to_csv('data/two_point_met' + str(n**dim) + '.csv')
-        chi_met.to_csv('data/chi_met' + str(n**dim) + '.csv')
-        Hc_met.to_csv('data/Hc_met' + str(n**dim) + '.csv')
+        mag_whole_met.to_csv('data/mag_whole_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')    
+        two_point_met.to_csv('data/two_point_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
+        chi_met.to_csv('data/chi_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
+        Hc_met.to_csv('data/Hc_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
     
-        mag_whole_wolff.to_csv('data/mag_whole_wolff' + str(n**dim) + '.csv')    
-        two_point_wolff.to_csv('data/two_point_wolff' + str(n**dim) + '.csv')
-        chi_w.to_csv('data/chi_w' + str(n**dim) + '.csv')
-        Hc_w.to_csv('data/Hc_w' + str(n**dim) + '.csv')
+        mag_whole_wolff.to_csv('data/mag_whole_wolff' + str(n**dim) + '_' + str(MC_trials) +'.csv')    
+        two_point_wolff.to_csv('data/two_point_wolff' + str(n**dim) + '_' + str(MC_trials) +'.csv')
+        chi_w.to_csv('data/chi_w' + str(n**dim) + '_' + str(MC_trials) +'.csv')
+        Hc_w.to_csv('data/Hc_w' + str(n**dim) + '_' + str(MC_trials) +'.csv')
         
