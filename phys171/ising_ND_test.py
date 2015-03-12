@@ -447,7 +447,7 @@ if __name__ == '__main__':
                                                               neighbor,
                                                               MC_trials,Equib_trials,interval,
                                                               seed_int_two)
-    
+    pickle = False
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(20,11))
     fs = 15
@@ -483,15 +483,27 @@ if __name__ == '__main__':
     plt.yticks(locs, map(lambda x: "%.1f" % x,locs*1e6))
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi\/(1E-6)$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
-    
-    mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim))    
-    two_point_met.to_pickle('data/two_point_met' + str(n**dim))
-    chi_met.to_pickle('data/chi_met' + str(n**dim))
-    Hc_met.to_pickle('data/Hc_met' + str(n**dim))
-    
-    mag_whole_wolff.to_pickle('data/mag_whole_wolff' + str(n**dim))    
-    two_point_wolff.to_pickle('data/two_point_wolff' + str(n**dim))
-    chi_w.to_pickle('data/chi_w' + str(n**dim))
-    Hc_w.to_pickle('data/Hc_w' + str(n**dim))
-    
+
     plt.show()
+
+    if pickle == True:
+        mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim))    
+        two_point_met.to_pickle('data/two_point_met' + str(n**dim))
+        chi_met.to_pickle('data/chi_met' + str(n**dim))
+        Hc_met.to_pickle('data/Hc_met' + str(n**dim))
+    
+        mag_whole_wolff.to_pickle('data/mag_whole_wolff' + str(n**dim))    
+        two_point_wolff.to_pickle('data/two_point_wolff' + str(n**dim))
+        chi_w.to_pickle('data/chi_w' + str(n**dim))
+        Hc_w.to_pickle('data/Hc_w' + str(n**dim))
+    else:
+        mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim) + '.csv')    
+        two_point_met.to_pickle('data/two_point_met' + str(n**dim) + '.csv')
+        chi_met.to_pickle('data/chi_met' + str(n**dim) + '.csv')
+        Hc_met.to_pickle('data/Hc_met' + str(n**dim) + '.csv')
+    
+        mag_whole_wolff.to_pickle('data/mag_whole_wolff' + str(n**dim) + '.csv')    
+        two_point_wolff.to_pickle('data/two_point_wolff' + str(n**dim) + '.csv')
+        chi_w.to_pickle('data/chi_w' + str(n**dim) + '.csv')
+        Hc_w.to_pickle('data/Hc_w' + str(n**dim) + '.csv')
+        
