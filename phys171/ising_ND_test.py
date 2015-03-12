@@ -398,14 +398,14 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 10000
+    MC_trials = 5000
     # Number of Equilibrium Trials
-    Equib_trials = 1000
+    Equib_trials = 500
     # Effective values
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 100
+    interval = 50
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
@@ -462,7 +462,10 @@ if __name__ == '__main__':
     plt.title('Magnetic Susceptibility',fontsize=fs)
     T_chi = np.linspace(0.001,T_end,len(chi_met))
     plt.plot(T_chi,chi_met,T_chi,chi_w)
-    plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi$',fontsize=fs)
+    locs,labels = plt.yticks()
+    yticks(locs, map(lambda x: "%.1f" % x,locs*1e6))
+    
+    plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi\/(1E-6)$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
     
     mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim))    
