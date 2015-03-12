@@ -506,8 +506,8 @@ if __name__ == '__main__':
     
     ax2 = fig.add_subplot(gs[10:18,0])
     plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(np.array(xrange(0,n)),np.abs(two_point_met[str(Temp)])[0:n-10],'--o',
-             np.array(xrange(0,n)),np.abs(two_point_wolff[str(Temp)][0:n-10]),'--o',
+    plt.plot(np.array(xrange(0,n-7)),np.abs(two_point_met[str(Temp)])[0:n-7],'--o',
+             np.array(xrange(0,n-7)),np.abs(two_point_wolff[str(Temp)][0:n-7]),'--o',
              np.array(xrange(0,n)),1/(np.array(xrange(1,n+1))**(1/4)),'-o')
     plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
     plt.legend(['Metropolis','Wolff','True'],prop={'size':fs-5})
