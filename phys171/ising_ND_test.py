@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from scipy import sparse
 import pdb
 
 # First, create the spin arrays in a given dimension
@@ -166,30 +167,72 @@ def calc_energy_change(site_i,k,h,
 # choosing s0 to be the center, and running through the lattice axes.
 def calc_spin_spin(coord,spins,n,dim,
                    neighbor):
-    center_coord = np.floor(n/2)*np.ones(dim,dtype=np.int16)
-    # Obtain the spin value of the center. This will be s_0
-    spin_index_center = np.where(np.all(center_coord==coord,axis=1))[0][0] 
-    s0 = spins[spin_index_center]
-    # Run through all spins at the lattice axes up to some 
-    # distance r to store s0*sr. Let r = n/2 so we reach the boundary
-    spin_spin = []
-    for i in xrange(1,np.int(n/2)):
-        # Obtain the spin values of the ith neighbor (this will have the effect
-        # of running through the lattice axes).
-        NearNeigh, Near_spins = calc_neighbors(spin_index_center,coord,spins,n,dim,
-                                               i)
-        # Average over all the neighbor spins
-        s0si = s0*np.mean(Near_spins)
-        spin_spin.append(s0si)
-    spin_spin = np.array(spin_spin)
-    return spin_spin, s0
+    # Result
+    spin_spin_whole = np.zeros(n)
+    spin_spin_whole[0] = 1 # Every spin is correlated with itself
+    # Samples
+    samples = np.zeros(n)
+    samples[0] = 1
+    
+    # Access each diagonal element spin
+    diag_spins_sites = np.zeros(n,dtype=np.int16)
+    diag_coord = np.zeros((n,dim),dtype=np.int16)
+    diag_spin_val = np.zeros(n,dtype=np.int8)
+    for i in xrange(0,n):
+        diag_coord_i = i*np.ones(dim)
+        diag_coord[i] = diag_coord_i
+        spin_site_diag = np.where(np.all(diag_coord_i==coord,axis=1))[0][0]              
+        diag_spins_sites[i] = np.int(spin_site_diag)
+        diag_spin_val[i] = spins[spin_site_diag]
+    
+    # Now we have the diagonal spins and coordinates
+    # For each diagonal spin
+    for i,spin_site in np.ndenumerate(diag_spins_sites):
+        i = i[0]
+        # For each distance r from the spin
+        samples_ith_spin = np.zeros(n)
+        for r in xrange(1,n):
+            # Locate the neighbors a distance r away
+            NearNeigh, Near_spins = calc_neighbors(spin_site,coord,spins,n,dim,
+                                                   r)
+            # Only consider the spins that aren't influenced by
+            # periodic boundary conditions
+            # If the ith spin will access r greater or smaller than the boundary
+                                                   
+            if ((i + r > n-1) and (i - r < 0)): # Outside the larger & smaller boundary
+                # Don't contribute from this value
+                continue
+            
+            elif (i - r < 0): # Outside the smaller boundary
+                # Access the (plus) values only (which have odd index values)
+                indices = np.array(range(0,2*dim))
+                indices = indices[indices%2==1]
+                NearNeigh = NearNeigh[indices]
+                Near_spins = Near_spins[indices]
+            elif (i + r > n-1): # Outside the larger boundary only
+                # Access the (minus) values only (which have even index values)
+                indices = np.array(range(0,2*dim))
+                indices = indices[indices%2==0]
+                NearNeigh = NearNeigh[indices]
+                Near_spins = Near_spins[indices]
+            
+            # Calculate spin-spin contribution
+            spin_spin_ith = spins[spin_site]*np.sum(Near_spins)
+            samples_ith_spin[r] = samples_ith_spin[r] + len(Near_spins)
+            # Add to the spin_spin array for each r
+            spin_spin_whole[r] = spin_spin_whole[r] + spin_spin_ith
+            
+        # Update total sample array
+        samples = samples + samples_ith_spin
+            
+    return spin_spin_whole/samples, np.mean(diag_spin_val)
 
 # Run the metropolis algorithm 
 def run_Metropolis(T,kb,J,H,mu,
                    coord,spins,n,dim,
                    neighbor,
                    MC_trials,Equib_trials,interval,
-                   seed_int):
+                   seed_int,divisor):
     print "Beginning Metropolis..."
     # Set the seed
     np.random.seed(seed=seed_int)
@@ -210,10 +253,10 @@ def run_Metropolis(T,kb,J,H,mu,
         k = J*B
         h = mu*H*B
         count = 0
-        spin_spin_whole = np.zeros(len(xrange(1,np.int(n/2))))
+        spin_spin_whole = np.zeros(n)
         # Calculate MC trials and take data for each trial
         for i in xrange(0,MC_trials + Equib_trials):
-            if (np.mod(i,(MC_trials)/10)==0): print i
+            if (np.mod(i,(MC_trials)/divisor)==0): print i
             # Choose a random site
             site_i = np.random.randint(0,spin_num)
             # Calculate the energy change
@@ -241,7 +284,6 @@ def run_Metropolis(T,kb,J,H,mu,
                 spin_spin_whole = (spin_spin_whole + spin_spin)
                 s0_arr.append(s0)
         spin_spin_whole = spin_spin_whole/count
-        spin_spin_whole = spin_spin_whole/np.mean(np.array(s0_arr)**2)        
         spin_spin_temp[str(t)] = spin_spin_whole
         # Obtain heat capacity
         energy = np.array(energy)
@@ -264,7 +306,7 @@ def run_Wolff(T,kb,J,H,mu,
               coord,spins,n,dim,
               neighbor,
               MC_trials,Equib_trials,interval,
-              seed_int):
+              seed_int,divisor):
     print "Beginning Wolff..."
     # Set the seed
     np.random.seed(seed=seed_int)
@@ -285,15 +327,14 @@ def run_Wolff(T,kb,J,H,mu,
         k = J*B
         h = mu*H*B
         count = 0
-        spin_spin_whole = np.zeros(len(xrange(1,np.int(n/2))))
+        spin_spin_whole = np.zeros(n)
         # Keep track of the cluster and the stack
         stack = []
-        cluster = []
-        # Keep track of spins that have interacted
-        interaction_matrix = np.zeros((n**dim,n**dim),dtype=np.int32)
+        #cluster = []
+        interaction_matrix = sparse.lil_matrix((n**dim,n**dim))
         
         for i in xrange(0,MC_trials + Equib_trials):
-            if (np.mod(i,(MC_trials)/10)==0): print i
+            if (np.mod(i,(MC_trials)/divisor)==0): print i
             # Choose a random site
             site_i = np.random.randint(0,spin_num)
             # Obtain the neighbors and spins
@@ -308,7 +349,7 @@ def run_Wolff(T,kb,J,H,mu,
                 # Calculate the spin index
                 val_site = np.where(np.all(NearNeigh[m]==coord,axis=1))[0][0]
                 # Check if the spins are parallel and haven't interacted
-                if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) or
+                if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) and
                 (interaction_matrix[site_i,val_site] == 0))):
                     # Update interaction matrix
                     interaction_matrix[val_site,site_i] = 1
@@ -316,7 +357,7 @@ def run_Wolff(T,kb,J,H,mu,
                     # TODO check if less than or greater than
                     # Add to cluster and stack then invert spin
                     if (np.random.random() > p):
-                        cluster.append(val_site)
+                        #cluster.append(val_site)
                         stack.append(val_site)
                         spins[val_site] = -spins[val_site]
 
@@ -338,7 +379,7 @@ def run_Wolff(T,kb,J,H,mu,
                     # Calculate the spin index 
                     val_site = np.where(np.all(NearNeigh[a]==coord,axis=1))[0][0]
                     # Check if the spins are parallel and haven't interacted
-                    if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) or
+                    if ((val == spins[site_i]) and ((interaction_matrix[val_site,site_i] == 0) and
                     (interaction_matrix[site_i,val_site] == 0))):
                         # Update interaction matrix
                         interaction_matrix[val_site,site_i] = 1
@@ -346,7 +387,7 @@ def run_Wolff(T,kb,J,H,mu,
                         # TODO check if less than or greater than
                         # Add to cluster and stack then invert spin
                         if (np.random.random() > p):
-                            cluster.append(val_site)
+                            #cluster.append(val_site)
                             stack.append(val_site)
                             spins[val_site] = -spins[val_site]
                         # If equilibrium has been reached at t
@@ -366,7 +407,6 @@ def run_Wolff(T,kb,J,H,mu,
                 spin_spin_whole = (spin_spin_whole + spin_spin)
                 s0_arr.append(s0)
         spin_spin_whole = spin_spin_whole/count
-        spin_spin_whole = spin_spin_whole/np.mean(np.array(s0_arr)**2)
         spin_spin_temp[str(t)] = spin_spin_whole
         # Done with MC trials now
         # Obtain heat capacity
@@ -402,7 +442,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 100
+    n = 20
     # Dimension
     dim = 2
     # Number of spins
@@ -414,14 +454,15 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 10000
+    MC_trials = 2000
     # Number of Equilibrium Trials
-    Equib_trials = 500
+    Equib_trials = 250
     # Effective values
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 50
+    interval = 1
+    divisor = 1
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
@@ -430,15 +471,15 @@ if __name__ == '__main__':
     spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)                                                  
     
     # ---------------------- Metropolis ------------------------------- #
-    T_end = 4
-    num_interval = 50
-    T = np.linspace(0.001,T_end,num_interval)
+    T_end = 3
+    num_interval = 4
+    T = np.linspace(2,T_end,num_interval)
 
     mag_whole_met, two_point_met, chi_met, Hc_met = run_Metropolis(T,kb,J,H,mu,
                                                                    coord,spins,n,dim,
                                                                    neighbor,
                                                                    MC_trials,Equib_trials,interval,
-                                                                   seed_int_two)
+                                                                   seed_int_two,divisor)
     
     # ---------------------- Wolff Cluster ---------------------------- #
     
@@ -446,7 +487,7 @@ if __name__ == '__main__':
                                                               coord,spins,n,dim,
                                                               neighbor,
                                                               MC_trials,Equib_trials,interval,
-                                                              seed_int_two)
+                                                              seed_int_two,divisor)                                                              
     pickle = False
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(20,11))
@@ -460,28 +501,25 @@ if __name__ == '__main__':
     plt.plot(T,mag_whole_met,'--o',T,mag_whole_wolff,'--o')
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\frac{<M>}{N}$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
-    plt.xlim([0,T_end])
 
-    Temp = T[28]
+    Temp = T[1]
     
     ax2 = fig.add_subplot(gs[10:18,0])
     plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(xrange(1,np.int(n/2)),np.abs(two_point_met[str(Temp)]),'--o',
-             xrange(1,np.int(n/2)),np.abs(two_point_wolff[str(Temp)]),'--o')
+    plt.plot(np.array(xrange(0,n)),(two_point_met[str(Temp)]),'--o',
+             np.array(xrange(0,n)),(two_point_wolff[str(Temp)]),'--o')
     plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
 
     ax3 = fig.add_subplot(gs[0:8,1])
     plt.title('Specific Heat',fontsize=fs)
-    T_hc = np.linspace(0.001,T_end,len(Hc_met))
-    plt.plot(T_hc,Hc_met,'--o',T_hc,Hc_w,'--o')
+    plt.plot(T,Hc_met,'--o',T,Hc_w,'--o')
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$C$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
 
     ax4 = fig.add_subplot(gs[10:18,1])
     plt.title('Magnetic Susceptibility',fontsize=fs)
-    T_chi = np.linspace(0.001,T_end,len(chi_met))
-    plt.plot(T_chi,chi_met,'--o',T_chi,chi_w,'--o')
+    plt.plot(T,chi_met,'--o',T,chi_w,'--o')
     locs,labels = plt.yticks()
     plt.yticks(locs, map(lambda x: "%.1f" % x,locs*1e6))
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi\/(1E-6)$',fontsize=fs)
