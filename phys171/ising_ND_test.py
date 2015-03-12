@@ -210,7 +210,7 @@ def run_Metropolis(T,kb,J,H,mu,
         h = mu*H*B
         # Calculate MC trials and take data for each trial
         for i in xrange(0,MC_trials + Equib_trials):
-            if (np.mod(i,100)==0): print i
+            if (np.mod(i,(MC_trials)/10)==0): print i
             # Choose a random site
             site_i = np.random.randint(0,spin_num)
             # Calculate the energy change
@@ -282,7 +282,7 @@ def run_Wolff(T,kb,J,H,mu,
         interaction_matrix = np.zeros((n**dim,n**dim),dtype=np.int32)
         
         for i in xrange(0,MC_trials + Equib_trials):
-            if (np.mod(i,100)==0): print i, len(stack)
+            if (np.mod(i,(MC_trials)/10)==0): print i
             # Choose a random site
             site_i = np.random.randint(0,spin_num)
             # Obtain the neighbors and spins
@@ -316,7 +316,6 @@ def run_Wolff(T,kb,J,H,mu,
                 # Redo for each spin in the stack, as long as the stack is
                 # not empty
                 # Obtain the neighbors and spins
-                print site_i
                 NearNeigh, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,
                                                        neighbor)
                 # Probability of inclusion in cluster for neighbors
@@ -401,12 +400,12 @@ if __name__ == '__main__':
     # Number of MC trials
     MC_trials = 10000
     # Number of Equilibrium Trials
-    Equib_trials = 500
+    Equib_trials = 1000
     # Effective values
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 1
+    interval = 100
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
@@ -416,7 +415,7 @@ if __name__ == '__main__':
     
     # ---------------------- Metropolis ------------------------------- #
     T_end = 4
-    num_interval = 20
+    num_interval = 50
     T = np.linspace(0.001,T_end,num_interval)
     mag_whole_met, two_point_met, chi_met, Hc_met = run_Metropolis(T,kb,J,H,mu,
                                                                    coord,spins,n,dim,
@@ -443,11 +442,12 @@ if __name__ == '__main__':
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
     plt.xlim([0,T_end])
 
+    Temp = T[28]
     
     ax2 = fig.add_subplot(gs[10:18,0])
     plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(xrange(1,np.int(n/2)),np.abs(two_point_met[str(T[2])]),
-             xrange(1,np.int(n/2)),np.abs(two_point_wolff[str(T[2])]))
+    plt.plot(xrange(1,np.int(n/2)),np.abs(two_point_met[str(Temp)]),
+             xrange(1,np.int(n/2)),np.abs(two_point_wolff[str(Temp)]))
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
 
@@ -464,5 +464,15 @@ if __name__ == '__main__':
     plt.plot(T_chi,chi_met,T_chi,chi_w)
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
+    
+    mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim))    
+    two_point_met.to_pickle('data/two_point_met' + str(n**dim))
+    chi_met.to_pickle('data/chi_met' + str(n**dim))
+    Hc_met.to_pickle('data/Hc_met' + str(n**dim))
+    
+    mag_whole_wolff.to_pickle('data/mag_whole_wolff' + str(n**dim))    
+    two_point_wolff.to_pickle('data/two_point_wolff' + str(n**dim))
+    chi_w.to_pickle('data/chi_w' + str(n**dim))
+    Hc_w.to_pickle('data/Hc_w' + str(n**dim))
     
     plt.show()
