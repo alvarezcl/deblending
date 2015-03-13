@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from scipy import sparse
+import fitter
+import lmfit
 import pdb
 
 # First, create the spin arrays in a given dimension
@@ -149,19 +151,15 @@ def calc_energy_config(k,h,
 def calc_energy_change(site_i,k,h,
                        coord,spins,n,dim,
                        neighbor):
-                           
-    # Copy from the previous array of spins
-    new_spins = np.copy(spins)
-    old_spin = spins[site_i]
+    old_spin = spins[site_i]                      
     # Flip the spin
-    new_spins[site_i] = -old_spin
-    new_spin = new_spins[site_i]
+    spins[site_i] = -spins[site_i]
     # Calculate the energy change
     NearNeigh, Near_spins = calc_neighbors(site_i,coord,spins,n,dim,neighbor)
     # A component in the neighbor term with magnetic field term
-    energy_change = -2*k*(np.sum(new_spins[site_i]*Near_spins)) - h*(new_spin-old_spin)
+    energy_change = -2*k*(np.sum(spins[site_i]*Near_spins)) - h*(spins[site_i]-old_spin)
     
-    return energy_change, new_spins
+    return energy_change, spins
 
 # Given the spins and coordinates, calculate the spin-spin correlation by 
 # choosing s0 to be the center, and running through the lattice axes.
@@ -237,9 +235,8 @@ def run_Metropolis(T,kb,J,H,mu,
     # Set the seed
     np.random.seed(seed=seed_int)
     # For magnetization and spin_spin data
-    mag_whole = []
+    mag_whole = {}
     spin_spin_temp = {}
-    s0_arr = []
     # Magnetic Susceptibility
     chi = {}
     # Heat Capacity
@@ -247,8 +244,8 @@ def run_Metropolis(T,kb,J,H,mu,
     # For the temperatures of interest
     for t in T:
         print "Temperature =",t
-        mag = []
-        energy = []
+        mag = np.zeros(MC_trials/interval)
+        energy = np.zeros(MC_trials/interval)
         B = 1/(kb*t)
         k = J*B
         h = mu*H*B
@@ -271,30 +268,29 @@ def run_Metropolis(T,kb,J,H,mu,
             # If equilibrium has been reached at t
             if (i >= Equib_trials and np.mod(i,interval)==0):
                 # Obtain the magnetization per site
-                mag.append((np.sum(spins)/spin_num))
+                mag[count] = (np.sum(spins)/spin_num)
+                #mag.append((np.sum(spins)/spin_num))
                 energy_config, tot_spin_per_site = calc_energy_config(k,h,
                                                                       coord,spins,n,dim,
                                                                       neighbor)
-                energy.append(energy_config)
+                energy[count] = energy_config
 
                 # Obtain the spin-spin correlation
                 spin_spin, s0 = calc_spin_spin(coord,spins,n,dim,
                                            neighbor)
                 count = count + 1
                 spin_spin_whole = (spin_spin_whole + spin_spin)
-                s0_arr.append(s0)
+                
         spin_spin_whole = spin_spin_whole/count
         spin_spin_temp[str(t)] = spin_spin_whole
         # Obtain heat capacity
-        energy = np.array(energy)
-        mag = np.array(mag)
         Hc[str(t)] = np.mean((1/np.sqrt(t*n**dim)*energy)**2) - (np.mean((1/np.sqrt(t*n**dim)*energy)))**2        
         # Obtain chi 
         chi[str(t)] = np.mean((1/np.sqrt(t*n**dim)*mag)**2) - (np.mean((1/np.sqrt(t*n**dim)*np.abs(mag))))**2
         # Obtain the mean magnetization per site
-        mag_whole.append(np.sum(mag)/len(mag))
-    # Convert to Pandas Object                          
-    mag_whole = pd.DataFrame(mag_whole,columns=['mag_whole_met'])
+        mag_whole[str(t)] = (np.sum(mag)/len(mag))
+    # Convert to Pandas Object                      
+    mag_whole = pd.Series(mag_whole)
     spin_spin_temp = pd.DataFrame(spin_spin_temp)
     chi = pd.Series(chi)
     Hc = pd.Series(Hc)
@@ -311,9 +307,8 @@ def run_Wolff(T,kb,J,H,mu,
     # Set the seed
     np.random.seed(seed=seed_int)
     # For magnetization and spin_spin data
-    mag_whole = []
+    mag_whole = {}
     spin_spin_temp = {}
-    s0_arr = []
     # Magnetic Susceptibility
     chi = {}
     # Heat Capacity
@@ -321,8 +316,8 @@ def run_Wolff(T,kb,J,H,mu,
     # For temperatures of interest
     for t in T:
         print "Temperature =",t
-        mag = []
-        energy = []
+        mag = np.zeros(MC_trials/interval)
+        energy = np.zeros(MC_trials/interval)
         B = 1/(kb*t)
         k = J*B
         h = mu*H*B
@@ -394,31 +389,29 @@ def run_Wolff(T,kb,J,H,mu,
             if (i >= Equib_trials and np.mod(i,interval)==0):
                 # Now the stack is empty
                 # Calculate observable on spins
-                mag.append((np.sum(spins)/spin_num))
+                mag[count] = (np.sum(spins)/spin_num)
                 energy_config, tot_spin_per_site = calc_energy_config(k,h,
                                                                       coord,spins,n,dim,
                                                                       neighbor)
-                energy.append(energy_config)
+                energy[count] = energy_config
 
                 # Obtain the spin-spin correlation
                 spin_spin, s0 = calc_spin_spin(coord,spins,n,dim,
                                            neighbor)
                 count = count + 1
                 spin_spin_whole = (spin_spin_whole + spin_spin)
-                s0_arr.append(s0)
+                
         spin_spin_whole = spin_spin_whole/count
         spin_spin_temp[str(t)] = spin_spin_whole
         # Done with MC trials now
         # Obtain heat capacity
-        energy = np.array(energy)
-        mag = np.array(mag)
         Hc[str(t)] = np.mean((1/np.sqrt(t*n**dim)*energy)**2) - (np.mean((1/np.sqrt(t*n**dim)*energy)))**2        
         # Obtain chi 
         chi[str(t)] = np.mean((1/np.sqrt(t*n**dim)*mag)**2) - (np.mean((1/np.sqrt(t*n**dim)*np.abs(mag))))**2
         # Obtain the mean magnetization per site
-        mag_whole.append(np.sum(mag)/len(mag))
+        mag_whole[str(t)] = (np.sum(mag)/len(mag))
     # Convert to Pandas Object                                             
-    mag_whole = pd.DataFrame(mag_whole,columns=['mag_whole_wolff'])
+    mag_whole = pd.Series(mag_whole)
     spin_spin_temp = pd.DataFrame(spin_spin_temp)
     chi = pd.Series(chi)
     Hc = pd.Series(Hc)
@@ -442,7 +435,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 40
+    n = 20
     # Dimension
     dim = 2
     # Number of spins
@@ -461,8 +454,9 @@ if __name__ == '__main__':
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 8
+    interval = 10
     divisor = 10
+    assert np.mod(MC_trials,interval)==0, "Use proper interval"
 
     # ---------------------- Spins and Coordinates -------------------- #
     # Create Spins with Coordinate Array
@@ -471,9 +465,9 @@ if __name__ == '__main__':
     spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)                                                  
     
     # ---------------------- Metropolis ------------------------------- #
-    T_end = 2.4
-    num_interval = 3
-    T = np.linspace(2.26,T_end,num_interval)
+    T_end = 2.78
+    num_interval = 4
+    T = np.linspace(2,T_end,num_interval)
 
     mag_whole_met, two_point_met, chi_met, Hc_met = run_Metropolis(T,kb,J,H,mu,
                                                                    coord,spins,n,dim,
@@ -488,6 +482,28 @@ if __name__ == '__main__':
                                                               neighbor,
                                                               MC_trials,Equib_trials,interval,
                                                               seed_int_two,divisor)                                                              
+    
+    # Get the correlation length on two point correlation data
+    # Reduce the boundary effects
+    remover = 5
+    new_two_pt_met = np.abs(two_point_met[0:n-remover])
+    new_two_pt_w = np.abs(two_point_wolff[0:n-remover])
+    boundary_pts_met = new_two_pt_met.ix[len(new_two_pt_met)-1]
+    boundary_pts_w = new_two_pt_w.ix[len(new_two_pt_w)-1]
+    cor_len_met_fit = fitter.correlation_fit(new_two_pt_met['2.26'])
+    cor_len_w_fit = fitter.correlation_fit(new_two_pt_w['2.26'])    
+    boundary_pts_met['2.26'] = cor_len_met_fit[len(cor_len_met_fit)-1]
+    boundary_pts_w['2.26'] = cor_len_w_fit[len(cor_len_w_fit)-1]   
+    correlation_length_met = -n/(np.log(boundary_pts_met))
+    correlation_length_w = -n/(np.log(boundary_pts_w))
+    
+    indices = T < 2.25
+    correlation_length_met[indices] = 0
+    correlation_length_w[indices] = 0
+    plt.title('Correlation Length')
+    plt.plot(T,correlation_length_met,'--o',T,correlation_length_w,'--o')
+    plt.legend(['Metropolis','Wolff'])
+    
     pickle = False
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(20,11))
@@ -502,13 +518,14 @@ if __name__ == '__main__':
     plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\frac{<M>}{N}$',fontsize=fs)
     plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
 
-    Temp = T[0]
+    Temp = T[1]
     
     ax2 = fig.add_subplot(gs[10:18,0])
+    model = fitter.model(1/4,np.array(xrange(0,n)))
     plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(np.array(xrange(0,n-7)),np.abs(two_point_met[str(Temp)])[0:n-7],'--o',
-             np.array(xrange(0,n-7)),np.abs(two_point_wolff[str(Temp)][0:n-7]),'--o',
-             np.array(xrange(0,n)),1/(np.array(xrange(1,n+1))**(1/4)),'-o')
+    plt.plot(np.array(xrange(0,n)),np.abs(two_point_met[str(Temp)])[0:n],'--o',
+             np.array(xrange(0,n)),np.abs(two_point_wolff[str(Temp)][0:n]),'--o',
+             np.array(xrange(0,n)),model,'-o')
     plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
     plt.legend(['Metropolis','Wolff','True'],prop={'size':fs-5})
 
