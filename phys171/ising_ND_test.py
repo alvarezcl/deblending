@@ -435,7 +435,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 20
+    n = 50
     # Dimension
     dim = 2
     # Number of spins
@@ -447,7 +447,7 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 2000
+    MC_trials = 1000
     # Number of Equilibrium Trials
     Equib_trials = 250
     # Effective values
@@ -465,9 +465,10 @@ if __name__ == '__main__':
     spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)                                                  
     
     # ---------------------- Metropolis ------------------------------- #
-    T_end = 2.78
-    num_interval = 4
-    T = np.linspace(2,T_end,num_interval)
+    T_end = 4
+    Tinit = 0.01
+    num_interval = 100
+    T = np.linspace(Tinit,T_end,num_interval)
 
     mag_whole_met, two_point_met, chi_met, Hc_met = run_Metropolis(T,kb,J,H,mu,
                                                                    coord,spins,n,dim,
@@ -485,84 +486,89 @@ if __name__ == '__main__':
     
     # Get the correlation length on two point correlation data
     # Reduce the boundary effects
-    remover = 5
+    remover = 0
+    indexer = str(T[56])
     new_two_pt_met = np.abs(two_point_met[0:n-remover])
     new_two_pt_w = np.abs(two_point_wolff[0:n-remover])
     boundary_pts_met = new_two_pt_met.ix[len(new_two_pt_met)-1]
     boundary_pts_w = new_two_pt_w.ix[len(new_two_pt_w)-1]
-    cor_len_met_fit = fitter.correlation_fit(new_two_pt_met['2.26'])
-    cor_len_w_fit = fitter.correlation_fit(new_two_pt_w['2.26'])    
-    boundary_pts_met['2.26'] = cor_len_met_fit[len(cor_len_met_fit)-1]
-    boundary_pts_w['2.26'] = cor_len_w_fit[len(cor_len_w_fit)-1]   
+    cor_len_met_fit = fitter.correlation_fit(new_two_pt_met[indexer])
+    cor_len_w_fit = fitter.correlation_fit(new_two_pt_w[indexer])    
+    boundary_pts_met[indexer] = cor_len_met_fit[len(cor_len_met_fit)-1]
+    boundary_pts_w[indexer] = cor_len_w_fit[len(cor_len_w_fit)-1]   
     correlation_length_met = -n/(np.log(boundary_pts_met))
     correlation_length_w = -n/(np.log(boundary_pts_w))
+    
+    correlation_length_met = pd.Series(correlation_length_met)    
+    correlation_length_w = pd.Series(correlation_length_w)    
+    
+    correlation_length_met.to_csv('data/correlation_length_met' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    correlation_length_w.to_csv('data/correlation_length_w' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')    
+    
+    mag_whole_met.to_csv('data/mag_whole_met' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')    
+    two_point_met.to_csv('data/two_point_met' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    chi_met.to_csv('data/chi_met' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    Hc_met.to_csv('data/Hc_met' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    
+    mag_whole_wolff.to_csv('data/mag_whole_wolff' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')    
+    two_point_wolff.to_csv('data/two_point_wolff' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    chi_w.to_csv('data/chi_w' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+    Hc_w.to_csv('data/Hc_w' + str(n**dim) + '_' + str(MC_trials) + '_T' +str(T_end-Tinit) + '.csv')
+        
     
     indices = T < 2.25
     correlation_length_met[indices] = 0
     correlation_length_w[indices] = 0
-    plt.title('Correlation Length')
-    plt.plot(T,correlation_length_met,'--o',T,correlation_length_w,'--o')
-    plt.legend(['Metropolis','Wolff'])
     
-    pickle = False
-    gs = gridspec.GridSpec(20,2)
-    fig = plt.figure(figsize=(20,11))
-    fs = 15
-    plt.suptitle('Metropolis and Wolff Monte Carlo Simulation on a\n' +
-                 str(dim) + 'D Lattice of Size ' + str(n) +' With ' +
-                 str(MC_trials) +' Monte Carlo Trials',fontsize=fs)
     
-    ax1 = fig.add_subplot(gs[0:8,0])     
-    plt.title('Magnetization',fontsize=fs)
-    plt.plot(T,mag_whole_met,'--o',T,mag_whole_wolff,'--o')
-    plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\frac{<M>}{N}$',fontsize=fs)
-    plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
-
-    Temp = T[1]
-    
-    ax2 = fig.add_subplot(gs[10:18,0])
-    model = fitter.model(1/4,np.array(xrange(0,n)))
-    plt.title('Two-Point Correlation',fontsize=fs)
-    plt.plot(np.array(xrange(0,n)),np.abs(two_point_met[str(Temp)])[0:n],'--o',
-             np.array(xrange(0,n)),np.abs(two_point_wolff[str(Temp)][0:n]),'--o',
-             np.array(xrange(0,n)),model,'-o')
-    plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
-    plt.legend(['Metropolis','Wolff','True'],prop={'size':fs-5})
-
-    ax3 = fig.add_subplot(gs[0:8,1])
-    plt.title('Specific Heat',fontsize=fs)
-    plt.plot(T,Hc_met,'--o',T,Hc_w,'--o')
-    plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$C$',fontsize=fs)
-    plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
-
-    ax4 = fig.add_subplot(gs[10:18,1])
-    plt.title('Magnetic Susceptibility',fontsize=fs)
-    plt.plot(T,chi_met,'--o',T,chi_w,'--o')
-    locs,labels = plt.yticks()
-    plt.yticks(locs, map(lambda x: "%.1f" % x,locs*1e6))
-    plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi\/(1E-6)$',fontsize=fs)
-    plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
-
-    plt.show()
-
-    if pickle == True:
-        mag_whole_met.to_pickle('data/mag_whole_met' + str(n**dim))    
-        two_point_met.to_pickle('data/two_point_met' + str(n**dim))
-        chi_met.to_pickle('data/chi_met' + str(n**dim))
-        Hc_met.to_pickle('data/Hc_met' + str(n**dim))
-    
-        mag_whole_wolff.to_pickle('data/mag_whole_wolff' + str(n**dim))    
-        two_point_wolff.to_pickle('data/two_point_wolff' + str(n**dim))
-        chi_w.to_pickle('data/chi_w' + str(n**dim))
-        Hc_w.to_pickle('data/Hc_w' + str(n**dim))
-    else:
-        mag_whole_met.to_csv('data/mag_whole_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')    
-        two_point_met.to_csv('data/two_point_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
-        chi_met.to_csv('data/chi_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
-        Hc_met.to_csv('data/Hc_met' + str(n**dim) + '_' + str(MC_trials) +'.csv')
-    
-        mag_whole_wolff.to_csv('data/mag_whole_wolff' + str(n**dim) + '_' + str(MC_trials) +'.csv')    
-        two_point_wolff.to_csv('data/two_point_wolff' + str(n**dim) + '_' + str(MC_trials) +'.csv')
-        chi_w.to_csv('data/chi_w' + str(n**dim) + '_' + str(MC_trials) +'.csv')
-        Hc_w.to_csv('data/Hc_w' + str(n**dim) + '_' + str(MC_trials) +'.csv')
+    plot = True
+    if plot == True:    
+        import matplotlib.pyplot as plt
+        import matplotlib.gridspec as gridspec
         
+        plt.title('Correlation Length')
+        plt.plot(T,correlation_length_met,'--o',T,correlation_length_w,'--o')
+        plt.legend(['Metropolis','Wolff'])
+    
+    
+    
+        gs = gridspec.GridSpec(20,2)
+        fig = plt.figure(figsize=(20,11))
+        fs = 15
+        plt.suptitle('Metropolis and Wolff Monte Carlo Simulation on a\n' +
+                     str(dim) + 'D Lattice of Size ' + str(n) +' With ' +
+                     str(MC_trials) +' Monte Carlo Trials',fontsize=fs)
+        
+        ax1 = fig.add_subplot(gs[0:8,0])     
+        plt.title('Magnetization',fontsize=fs)
+        plt.plot(T,mag_whole_met,'--o',T,mag_whole_wolff,'--o')
+        plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\frac{<M>}{N}$',fontsize=fs)
+        plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
+    
+        Temp = T[1]
+        
+        ax2 = fig.add_subplot(gs[10:18,0])
+        model = fitter.model(1/4,np.array(xrange(0,n)))
+        plt.title('Two-Point Correlation',fontsize=fs)
+        plt.plot(np.array(xrange(0,n)),np.abs(two_point_met[str(Temp)])[0:n],'--o',
+                 np.array(xrange(0,n)),np.abs(two_point_wolff[str(Temp)][0:n]),'--o',
+                 np.array(xrange(0,n)),model,'-o')
+        plt.xlabel(r'$|r_i - r_j|$',fontsize=fs); plt.ylabel(r'$<s_os_r>$',fontsize=fs)
+        plt.legend(['Metropolis','Wolff','True'],prop={'size':fs-5})
+    
+        ax3 = fig.add_subplot(gs[0:8,1])
+        plt.title('Specific Heat',fontsize=fs)
+        plt.plot(T,Hc_met,'--o',T,Hc_w,'--o')
+        plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$C$',fontsize=fs)
+        plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
+    
+        ax4 = fig.add_subplot(gs[10:18,1])
+        plt.title('Magnetic Susceptibility',fontsize=fs)
+        plt.plot(T,chi_met,'--o',T,chi_w,'--o')
+        locs,labels = plt.yticks()
+        plt.yticks(locs, map(lambda x: "%.1f" % x,locs*1e6))
+        plt.xlabel('Temperature',fontsize=fs); plt.ylabel(r'$\chi\/(1E-6)$',fontsize=fs)
+        plt.legend(['Metropolis','Wolff'],prop={'size':fs-5})
+    
+        plt.show()
+
