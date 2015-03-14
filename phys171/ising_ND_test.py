@@ -458,7 +458,7 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 200
+    MC_trials = 10
     # Number of Equilibrium Trials
     Equib_trials = 50
     # Effective values
@@ -491,6 +491,18 @@ if __name__ == '__main__':
                                                                                MC_trials,Equib_trials,interval,
                                                                                seed_int_two,divisor)
     
+    save = True
+    if save == True:
+        
+        info = 'size_' + str(n) + '_dim_' + str(dim) + '_MC_' + str(MC_trials) +'_inter_' + str(interval) +  '_T' +str(T_end-Tinit) + '.csv'
+        
+        mag_whole_met.to_csv('data/mag_whole_met_' + info)    
+        two_point_met.to_csv('data/two_point_met_' + info)
+        chi_met.to_csv('data/chi_met_' + info)
+        Hc_met.to_csv('data/Hc_met_' + info)
+        energy_met.to_csv('data/energy_met_' + info)    
+    
+    
     # ---------------------- Spins and Coordinates -------------------- #
     # Create new set of all up spins
     # Assign spins to array
@@ -504,17 +516,7 @@ if __name__ == '__main__':
                                                                         MC_trials,Equib_trials,interval,
                                                                         seed_int_two,divisor)                                                              
         
-    save = False
-    if save == True:
-        
-        info = 'size_' + str(n) + '_dim_' + str(dim) + '_MC_' + str(MC_trials) +'_inter_' + str(interval) +  '_T' +str(T_end-Tinit) + '.csv'
-        
-        mag_whole_met.to_csv('data/mag_whole_met_' + info)    
-        two_point_met.to_csv('data/two_point_met_' + info)
-        chi_met.to_csv('data/chi_met_' + info)
-        Hc_met.to_csv('data/Hc_met_' + info)
-        energy_met.to_csv('data/energy_met_' + info)
-        
+    if save == True:        
         mag_whole_wolff.to_csv('data/mag_whole_wolff_' + info)    
         two_point_wolff.to_csv('data/two_point_wolff_' + info)
         chi_w.to_csv('data/chi_w_' + info)
@@ -522,7 +524,7 @@ if __name__ == '__main__':
         energy_w.to_csv('data/energy_w_' + info)
     
     
-    plot = True
+    plot = False
     if plot == True:    
         import matplotlib.pyplot as plt
         import matplotlib.gridspec as gridspec
