@@ -3,10 +3,7 @@
 from __future__ import division
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from scipy import sparse
-import fitter
 import lmfit
 import ipdb
 
@@ -445,7 +442,7 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 60
+    n = 8
     bound = 5
     # Dimension
     dim = 2
@@ -465,7 +462,7 @@ if __name__ == '__main__':
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 5
+    interval = 20
     divisor = 10
     assert np.mod(MC_trials,interval)==0, "Use proper interval"
 
