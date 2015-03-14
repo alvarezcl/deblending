@@ -445,8 +445,8 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 12
-    bound = 3
+    n = 60
+    bound = 5
     # Dimension
     dim = 2
     # Number of spins
@@ -458,15 +458,15 @@ if __name__ == '__main__':
     seed_int_two = 2
     seed_int_three = 3
     # Number of MC trials
-    MC_trials = 10
+    MC_trials = 2000
     # Number of Equilibrium Trials
-    Equib_trials = 50
+    Equib_trials = 100
     # Effective values
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
     interval = 5
-    divisor = 0.5
+    divisor = 10
     assert np.mod(MC_trials,interval)==0, "Use proper interval"
 
     # ---------------------- Spins and Coordinates -------------------- #
