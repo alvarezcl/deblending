@@ -442,28 +442,28 @@ if __name__ == '__main__':
     # Chem Potential
     mu = 1
     # Size of Lattice
-    n = 8
-    bound = 5
+    n = 28
+    bound = 2
     # Dimension
-    dim = 2
+    dim = 3
     # Number of spins
     spin_num = n**dim
     # Nearest neighbor coupling
     neighbor = 1
     # Integer for seed
-    seed_int_one = 1
-    seed_int_two = 2
-    seed_int_three = 3
+    seed_int_one = 0
+    seed_int_two = 0
+    seed_int_three = 0
     # Number of MC trials
-    MC_trials = 2000
+    MC_trials = 1500
     # Number of Equilibrium Trials
     Equib_trials = 100
     # Effective values
     k = J*B
     h = mu*H*B    
     # Intervals at which to sample observable in MC iteration
-    interval = 20
-    divisor = 10
+    interval = 25
+    divisor = 100
     assert np.mod(MC_trials,interval)==0, "Use proper interval"
 
     # ---------------------- Spins and Coordinates -------------------- #
@@ -475,29 +475,33 @@ if __name__ == '__main__':
     # ---------------------- Metropolis ------------------------------- #
     Tinit = 0.01    
     T_end = 4
-    fir = np.linspace(Tinit,1,4)
-    sec = np.linspace(1.1,1.8,10)
-    thi = np.linspace(1.9,2.5,50)
-    four = np.linspace(2.6,T_end,10)
+    fir = np.linspace(Tinit,1,3)
+    sec = np.linspace(1.1,1.8,6)
+    thi = np.linspace(1.9,2.5,25)
+    four = np.linspace(2.6,T_end,6)
     T = np.concatenate([fir,sec,thi,four])
    
 
-    mag_whole_met, two_point_met, chi_met, Hc_met, energy_met = run_Metropolis(T,kb,J,H,mu,
-                                                                               coord,spins,n,bound,dim,
-                                                                               neighbor,
-                                                                               MC_trials,Equib_trials,interval,
-                                                                               seed_int_two,divisor)
-    
-    save = True
-    if save == True:
+    met = False
+    w = True
+
+    if met == True:
+        mag_whole_met, two_point_met, chi_met, Hc_met, energy_met = run_Metropolis(T,kb,J,H,mu,
+                                                                                   coord,spins,n,bound,dim,
+                                                                                   neighbor,
+                                                                                   MC_trials,Equib_trials,interval,
+                                                                                   seed_int_two,divisor)
         
-        info = 'size_' + str(n) + '_dim_' + str(dim) + '_MC_' + str(MC_trials) +'_inter_' + str(interval) +  '_T' +str(T_end-Tinit) + '.csv'
-        
-        mag_whole_met.to_csv('data/mag_whole_met_' + info)    
-        two_point_met.to_csv('data/two_point_met_' + info)
-        chi_met.to_csv('data/chi_met_' + info)
-        Hc_met.to_csv('data/Hc_met_' + info)
-        energy_met.to_csv('data/energy_met_' + info)    
+        save = True
+        if save == True:
+            
+            info = 'size_' + str(n) + '_dim_' + str(dim) + '_MC_' + str(MC_trials) +'_inter_' + str(interval) +  '_T' +str(T_end-Tinit) + '.csv'
+            
+            mag_whole_met.to_csv('data/mag_whole_met_' + info)    
+            two_point_met.to_csv('data/two_point_met_' + info)
+            chi_met.to_csv('data/chi_met_' + info)
+            Hc_met.to_csv('data/Hc_met_' + info)
+            energy_met.to_csv('data/energy_met_' + info)    
     
     
     # ---------------------- Spins and Coordinates -------------------- #
@@ -506,20 +510,21 @@ if __name__ == '__main__':
     spins = assign_spins(spin_num,all_ones=True,seed=seed_int_one)    
     
     # ---------------------- Wolff Cluster ---------------------------- #
-    
-    mag_whole_wolff, two_point_wolff, chi_w, Hc_w, energy_w = run_Wolff(T,kb,J,H,mu,
-                                                                        coord,spins,n,bound,dim,
-                                                                        neighbor,
-                                                                        MC_trials,Equib_trials,interval,
-                                                                        seed_int_two,divisor)                                                              
+
+    if w == True:
+        mag_whole_wolff, two_point_wolff, chi_w, Hc_w, energy_w = run_Wolff(T,kb,J,H,mu,
+                                                                            coord,spins,n,bound,dim,
+                                                                            neighbor,
+                                                                            MC_trials,Equib_trials,interval,
+                                                                            seed_int_two,divisor)                                                              
+            
+        if save == True:        
+            mag_whole_wolff.to_csv('data/mag_whole_wolff_' + info)    
+            two_point_wolff.to_csv('data/two_point_wolff_' + info)
+            chi_w.to_csv('data/chi_w_' + info)
+            Hc_w.to_csv('data/Hc_w_' + info)
+            energy_w.to_csv('data/energy_w_' + info)
         
-    if save == True:        
-        mag_whole_wolff.to_csv('data/mag_whole_wolff_' + info)    
-        two_point_wolff.to_csv('data/two_point_wolff_' + info)
-        chi_w.to_csv('data/chi_w_' + info)
-        Hc_w.to_csv('data/Hc_w_' + info)
-        energy_w.to_csv('data/energy_w_' + info)
-    
     
     plot = False
     if plot == True:    
