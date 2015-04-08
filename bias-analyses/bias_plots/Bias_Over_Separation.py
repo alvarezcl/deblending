@@ -97,6 +97,14 @@ mod_val = 0.5*num_trials
 # Bool for saving triangle plots 
 create_triangle_plots = False
 
+# See the 3d plots
+fig_3d = Library.plot_3d_separation(separation,
+                                    func,
+                                    image_params,
+                                    obj_a,obj_b,method,
+                                    sky_info,
+                                    psf_info)
+
 # Create the string of information
 info_str = Library.join_info(separation,
                              num_trial_arr,

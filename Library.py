@@ -14,6 +14,7 @@ import os
 import scipy
 import triangle
 from scipy import interpolate
+from mpl_toolkits.mplot3d import Axes3D
 import ipdb
 
 # Create a galaxy with a sersic profile and optional psf to the image. 
@@ -899,3 +900,60 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     
     plt.savefig(path + '/bias_vs_separation.png')
     plt.clf()
+    
+def plot_3d(im,fig,gs,i):
+    x,y = im.array.shape
+    domain = np.linspace(1,x,num=x)
+    X,Y = np.meshgrid(domain,domain)
+    ax = fig.add_subplot(gs[i,0],projection='3d')
+    ax.scatter(X,Y,im)
+    return ax
+    
+def plot_3d_separation(separation,
+                       func,
+                       image_params,
+                       obj_a,obj_b,method,
+                       sky_info,
+                       psf_info):
+                           
+    gs = gridspec.GridSpec(len(separation),1)
+    fig = plt.figure(figsize=(16,12))
+    for i,sep in enumerate(separation):
+        
+        obj_a[4] = -sep/2
+        obj_b[4] = sep/2
+        
+        # Image properties
+        pixel_scale, x_len, y_len = image_params
+        
+        # Parameters for object a
+        flux_a, hlr_a, e1_a, e2_a, x0_a, y0_a, n_a = obj_a 
+        
+        # Parameters for object b
+        flux_b, hlr_b, e1_b, e2_b, x0_b, y0_b, n_b = obj_b
+        
+        # Use LSST defined sky noise for r-band
+        add_noise_flag, texp, sbar, sky_level = sky_info
+        
+        # psf properties
+        psf_flag, beta, fwhm_psf = psf_info
+        
+        # Create the objects and combine them
+        image_a = create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,galtype_gal=func,sersic_index=n_a,
+                                x_len=x_len,y_len=y_len,scale=pixel_scale,
+                                psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
+                                method=method)
+    
+        image_b = create_galaxy(flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,galtype_gal=func,sersic_index=n_b,
+                                x_len=x_len,y_len=y_len,scale=pixel_scale,
+                                psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
+                                method=method)
+    
+        tot_image = image_a + image_b
+        
+        plot_3d(tot_image,fig,gs,i)
+        
+    return fig
+        
+        
+            
