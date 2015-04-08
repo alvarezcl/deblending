@@ -626,7 +626,8 @@ def run_over_separation(separation,
                         sky_info,
                         psf_info,
                         mod_val,est_centroid,randomize,
-                        number_run):
+                        number_run,
+                        create_triangle_plots):
     
     means_e1_a = {}
     means_e2_a = {} 
@@ -667,13 +668,14 @@ def run_over_separation(separation,
         data_simult = show_stats(results_sim,num_trials,truth)
         
          # Save triangle plots
-        create_triangle_plots(path,
-                              results_deblend,data_dbl,
-                              results_true,data_true,
-                              results_sim,data_simult,
-                              truth,
-                              x_y_coord,
-                              randomize)
+        if create_triangle_plots:
+            create_triangle_plots(path,
+                                  results_deblend,data_dbl,
+                                  results_true,data_true,
+                                  results_sim,data_simult,
+                                  truth,
+                                  x_y_coord,
+                                  randomize)
         
         # Obtain the mean values with error on mean values
         index = 0
@@ -785,6 +787,7 @@ def create_triangle_plots(path,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
     plt.savefig(path + '/dbl_fit.png')
     plt.clf()
+    print "Done saving triangle plots"
     
         
 def create_extents(factor,max_sigma,truth,randomize):
@@ -817,3 +820,82 @@ def create_extents(factor,max_sigma,truth,randomize):
                (truth['y0_b']-y0_interval_b,truth['y0_b']+y0_interval_b)]
                
     return extents
+
+
+def create_bias_plot(path,separation,means,s_means,pixel_scale,
+                     fs,min_offset,max_offset):
+    
+    assert len(separation) >= 2, "Separation array must be larger than 1"
+    
+    def obtain_min_max_df(df_1,df_2,df_3,df_4):
+        max_val = np.max(np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1)))
+        min_val = np.min(np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1)))    
+        return max_val, min_val
+        
+    def format_df(df,value_1,value_2,index):
+        result = pd.concat([pd.DataFrame(np.array([np.NAN,np.NAN,np.NAN]),columns=[str(value_1)],index=index),
+                            df,
+                            pd.DataFrame(np.array([np.NAN,np.NAN,np.NAN]),columns=[str(value_2)],index=index)],
+                           axis=1)
+        return result
+           
+    print "Saving bias vs separation plot."   
+    
+    means_e1_a = means['means_e1_a']
+    means_e2_a = means['means_e2_a']
+    means_e1_b = means['means_e1_b']
+    means_e2_b = means['means_e2_b']
+    
+    s_means_e1_a = s_means['s_means_e1_a']
+    s_means_e2_a = s_means['s_means_e2_a']
+    s_means_e1_b = s_means['s_means_e1_b']
+    s_means_e2_b = s_means['s_means_e2_b']
+    
+    x_min = np.min(separation) - pixel_scale
+    x_max = np.max(separation) + pixel_scale
+    
+    max_mean, min_mean = obtain_min_max_df(means_e1_a,means_e2_a,means_e1_b,means_e2_b)
+    max_s_mean, min_s_mean = obtain_min_max_df(s_means_e1_a,s_means_e2_a,s_means_e1_b,s_means_e2_b)        
+    
+    gs = gridspec.GridSpec(20,2)
+    fig = plt.figure(figsize=(18,15))
+    plt.suptitle('Ellipticity Bias for Objects a and b\n vs Separation',fontsize=fs+6)
+
+    ax = fig.add_subplot(gs[0:8,0])
+    title = 'e1 for Object a'
+    plt.title('Bias vs Separation For ' + title,fontsize=fs)
+    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    f_m_e1_a = format_df(means_e1_a,x_min,x_max,means_e1_a.index)
+    f_s_m_e1_a = format_df(s_means_e1_a,x_min,x_max,s_means_e1_a.index)
+    f_m_e1_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T)
+    
+    ax = fig.add_subplot(gs[11:19,0])
+    title = 'e1 for Object b'
+    plt.title('Bias vs Separation For ' + title,fontsize=fs)
+    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    f_m_e1_b = format_df(means_e1_b,x_min,x_max,means_e1_b.index)
+    f_s_m_e1_b = format_df(s_means_e1_b,x_min,x_max,s_means_e1_b.index)
+    f_m_e1_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T)
+    
+    ax = fig.add_subplot(gs[0:8,1])
+    title = 'e2 for Object a'
+    plt.title('Bias vs Separation For ' + title,fontsize=fs)
+    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    f_m_e2_a = format_df(means_e2_a,x_min,x_max,means_e2_a.index)
+    f_s_m_e2_a = format_df(s_means_e2_a,x_min,x_max,means_e2_a.index)
+    f_m_e2_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T)
+    
+    ax = fig.add_subplot(gs[11:19,1])
+    title = 'e2 for Object b'
+    plt.title('Bias vs Separation For ' + title,fontsize=fs)
+    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    f_m_e2_b = format_df(means_e2_b,x_min,x_max,means_e2_b.index)
+    f_s_m_e2_b = format_df(s_means_e2_b,x_min,x_max,s_means_e2_b.index)
+    f_m_e2_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T)
+    
+    plt.savefig(path + '/bias_vs_separation.png')
+    plt.clf()

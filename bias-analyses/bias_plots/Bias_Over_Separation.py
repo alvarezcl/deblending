@@ -14,8 +14,6 @@ from __future__ import division
 import Library
 import galsim
 import numpy as np
-import os
-import ipdb
 # ----------------------------- Parameters -----------------------------------
 
 # Which run
@@ -77,7 +75,7 @@ fwhm_psf = 0.6
 psf_info = [psf_flag,beta,fwhm_psf]
 
 # Separations to run through, along the x-axis
-separation = [2.2,2.0,1.8,1.6]
+separation = [2.2,2.0]
 
 # Number of trials to use
 num_trials = 20
@@ -93,10 +91,13 @@ use_est_centroid = True
 # Do not randomize about median separation
 randomize = True
 
-# When to save images for checking
+# When to save images for checking and outputting place on terminal
 mod_val = 0.5*num_trials
 
-# Create the sub-directories
+# Bool for saving triangle plots 
+create_triangle_plots = False
+
+# Create the string of information
 info_str = Library.join_info(separation,
                              num_trial_arr,
                              func,
@@ -106,9 +107,14 @@ info_str = Library.join_info(separation,
                              sky_info,
                              psf_info,
                              mod_val,use_est_centroid,randomize)
-                            
+
+# Create the read me file containing the information of the run                  
 Library.create_read_me(info_str,number_run)
 
+# Run through different separations and obtain the mean
+# values of e1 and e2 for objects a and b for each method:
+# fits to the true objects, simultaneous fits, and fits to the
+# deblended objects
 means, s_means = Library.run_over_separation(separation,
                                              num_trial_arr,
                                              func,
@@ -118,8 +124,12 @@ means, s_means = Library.run_over_separation(separation,
                                              sky_info,
                                              psf_info,
                                              mod_val,use_est_centroid,randomize,
-                                             number_run)
+                                             number_run,
+                                             create_triangle_plots)
                                              
 # Plot the bias information in sub-directory
-                                    
-                 
+fs = 13
+min_offset = 1.5
+max_offset = 1.5
+Library.create_bias_plot(number_run,separation,means,s_means,pixel_scale,
+                         fs,min_offset,max_offset)
