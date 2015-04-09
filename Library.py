@@ -833,18 +833,21 @@ def create_triangle_plots(path,sep,num_trials,
     plt.suptitle('Triangle Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/true_fit.png')
     plt.clf()
+    plt.close()
     
     fig_sim = triangle.corner(sim_tri,labels=sim_tri.columns,truths=truth.values,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
     plt.suptitle('Triangle Plot for Simultaneous Fitting to the Deblended Object\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/simult_fit.png')
     plt.clf()
+    plt.close()
     
     fig_dbl = triangle.corner(dbl_tri,labels=dbl_tri.columns,truths=truth.values,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
     plt.suptitle('Triangle Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/dbl_fit.png')
     plt.clf()
+    plt.close()
     print "Done saving triangle plots"
     
         
@@ -971,6 +974,7 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     
     plt.savefig(path + '/bias_vs_separation.png')
     plt.clf()
+    plt.close()
     
 def plot_3d(im,fig,gs,i,sep,fs,cushion):
     x,y = im.array.shape
@@ -1105,4 +1109,5 @@ def save_image(path,results_deblend,dbl_im,image_params,truth,sep):
 
     plt.savefig(path + '/images.png')
     plt.clf()
+    plt.close()
     
