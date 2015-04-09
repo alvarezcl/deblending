@@ -440,19 +440,11 @@ def rearrange_lmfit_2obj(result):
     arr = pd.Series(arr,index=['flux_a','hlr_a','e1_a','e2_a','x0_a','y0_a',
                                'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b'])
     return arr
-    
-# Input a dataframe object to return the mean, std dev, and error on the mean
-#def show_stats(results,runs,value):
- #   data = pd.DataFrame(np.array([np.mean(results)-value,np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
-  #  data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
-   # return data
-    
+        
 def show_stats(results,runs,value):
     data = pd.DataFrame(np.array([results.mean().values-value,results.std().values,results.std().values/np.sqrt(runs)]),columns=results.columns)
     data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
-    return data
-
-    
+    return data    
 
 # Save the information if results have been statistically independent
 def save_data(path,results_deblend,results_true,results_sim):
@@ -878,12 +870,7 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
                        fs,leg_fs,min_offset,max_offset,psf_flag):
     
     assert len(separation) >= 2, "Separation array must be larger than 1"
-    
-    #def obtain_min_max_df(df_1,df_2,df_3,df_4):
-     #   max_val = np.max(np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1)))
-      #  min_val = np.min(np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1)))    
-       # return max_val, min_val
-        
+         
     def obtain_min_max_df(df_1,df_2,df_3,df_4):
         max_val = np.max([df_1.T.max().values,df_2.T.max().values,df_3.T.max().values,df_4.T.max().values])
         min_val = np.min([df_1.T.min().values,df_2.T.min().values,df_3.T.min().values,df_4.T.min().values])    
@@ -916,7 +903,7 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     max_s_mean, min_s_mean = obtain_min_max_df(s_means_e1_a,s_means_e2_a,s_means_e1_b,s_means_e2_b)        
     
     gs = gridspec.GridSpec(20,2)
-    fig = plt.figure(figsize=(18,15))
+    fig = plt.figure(figsize=(18,16))
     
     if psf_flag: 
         suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
@@ -932,7 +919,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     f_m_e1_a = format_df(means_e1_a,x_min,x_max,means_e1_a.index)
     f_s_m_e1_a = format_df(s_means_e1_a,x_min,x_max,s_means_e1_a.index)
     ax = f_m_e1_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T)
-    ax.legend(prop={'size':leg_fs})
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
+              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[11:19,0])
     title = 'e1 for Object b'
@@ -942,7 +930,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     f_m_e1_b = format_df(means_e1_b,x_min,x_max,means_e1_b.index)
     f_s_m_e1_b = format_df(s_means_e1_b,x_min,x_max,s_means_e1_b.index)
     ax = f_m_e1_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T)
-    ax.legend(prop={'size':leg_fs})
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
+              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[0:8,1])
     title = 'e2 for Object a'
@@ -952,7 +941,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     f_m_e2_a = format_df(means_e2_a,x_min,x_max,means_e2_a.index)
     f_s_m_e2_a = format_df(s_means_e2_a,x_min,x_max,means_e2_a.index)
     ax = f_m_e2_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T)
-    ax.legend(prop={'size':leg_fs})
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
+              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[11:19,1])
     title = 'e2 for Object b'
@@ -962,7 +952,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     f_m_e2_b = format_df(means_e2_b,x_min,x_max,means_e2_b.index)
     f_s_m_e2_b = format_df(s_means_e2_b,x_min,x_max,s_means_e2_b.index)
     ax = f_m_e2_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T)
-    ax.legend(prop={'size':leg_fs})
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
+              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
     
     plt.savefig(path + '/bias_vs_separation.png')
     plt.clf()

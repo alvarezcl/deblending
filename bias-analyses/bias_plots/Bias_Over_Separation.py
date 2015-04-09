@@ -84,7 +84,7 @@ left_diag = False
 right_diag = False
 
 # Number of trials to use for each separation
-num_trials = 20
+num_trials = 15
 num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
 min_sep = 1.0
 factor = 1.0
@@ -140,7 +140,7 @@ means, s_means = Library.run_over_separation(separation,
                                              
 # Plot the bias information in sub-directory
 fs = 15
-leg_fs = 13
+leg_fs = 15
 min_offset = 1.3
 max_offset = 1.3
 Library.create_bias_plot_e(number_run,separation,means,s_means,pixel_scale,
