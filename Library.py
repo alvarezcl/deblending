@@ -684,7 +684,7 @@ def run_over_separation(separation,
         
          # Save triangle plots
         if create_tri_plots:
-            create_triangle_plots(path,
+            create_triangle_plots(path,sep,num_trials,
                                   results_deblend,data_dbl,
                                   results_true,data_true,
                                   results_sim,data_simult,
@@ -737,31 +737,42 @@ def join_info(separation,
               psf_info,
               mod_val,use_est_centroid,randomize,
               x_sep,y_sep,
-              left_diag,right_diag):
+              left_diag,right_diag,
+              create_tri_plots,):
                 
     if x_sep and y_sep and not right_diag and not left_diag: assert False, "Choose a diagonal."                                    
     if x_sep and y_sep: assert right_diag != left_diag, "Can't run through both diagonals of the image."                  
                   
     if x_sep and not y_sep:
         direction_str = 'x axis'
-        print "Moving objects along " + direction_str
+        print "\nMoving objects along " + direction_str + '\n'
     elif not x_sep and y_sep:
         direction_str = 'y axis'
-        print "Moving objects along " + direction_str
+        print "\nMoving objects along " + direction_str + '\n'
     elif x_sep and y_sep and right_diag:
         direction_str = 'right diagonal'
-        print "Moving objects along " + direction_str
+        print "\nMoving objects along " + direction_str + '\n'
     elif x_sep and y_sep and left_diag:
         direction_str = 'left diagonal'
-        print "Moving objects along " + direction_str
+        print "\nMoving objects along " + direction_str + '\n'
         
-    if psf_info[0]: print "Convolving objects with PSF"
-    if use_est_centroid:
-        print "Not using prior on (x,y) for both objects"
+    if psf_info[0]: 
+        print "Convolving objects with PSF\n"
     else:
-        print "Using prior on (x,y) for both objects"
+        print "Not convolving objects with PSF\n"
+    if use_est_centroid:
+        print "Not using prior on (x,y) for both objects\n"
+    else:
+        print "Using prior on (x,y) for both objects\n"
     if randomize:
-        print "Randomizing centroids a pixel about median separation"
+        print "Randomizing centroids a pixel about median separation\n"
+    else:
+        "Not Randomizing centroids a pixel about median separation\n"
+    if create_tri_plots:
+        print "Creating triangle plots\n"
+    else:
+        print "Not creating triangle plots\n"        
+        
         
     sub_dir = ('x_y_prior = ' + str(not use_est_centroid) + '\n' +
               'randomized_x_y = ' + str(randomize) + '\n' +
@@ -783,7 +794,7 @@ def create_read_me(info_str,number_run):
     file.write(info_str)
     file.close()
     
-def create_triangle_plots(path,
+def create_triangle_plots(path,sep,num_trials,
                           results_deblend,data_dbl,
                           results_true,data_true,
                           results_sim,data_sim,
@@ -819,16 +830,19 @@ def create_triangle_plots(path,
     print "Saving triangle plots"    
     fig_tru = triangle.corner(true_tri,labels=true_tri.columns,truths=truth.values,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
+    plt.suptitle('Triangle Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/true_fit.png')
     plt.clf()
     
     fig_sim = triangle.corner(sim_tri,labels=sim_tri.columns,truths=truth.values,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
+    plt.suptitle('Triangle Plot for Simultaneous Fitting to the Deblended Object\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/simult_fit.png')
     plt.clf()
     
     fig_dbl = triangle.corner(dbl_tri,labels=dbl_tri.columns,truths=truth.values,
                               show_titles=True, title_args={'fontsize':20},extents=extents)
+    plt.suptitle('Triangle Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/dbl_fit.png')
     plt.clf()
     print "Done saving triangle plots"
@@ -1047,7 +1061,7 @@ def save_image(path,results_deblend,dbl_im,image_params,truth,sep):
     gs = gridspec.GridSpec(7,9)                                   
     fig = plt.figure(figsize=(15,25))
     sh = 0.8
-    plt.suptitle('  True Objects, Deblended Objects & Fits to Deblended Objects\n For Separation: '+ str(sep) + '\"',fontsize=20)
+    plt.suptitle('  True Objects, Deblended Objects & Fits to Deblended Objects\n For Separation: '+ str(sep) + '\"',fontsize=45)
     
     # Plot the true blend
     ax = fig.add_subplot(gs[0,1:7])
