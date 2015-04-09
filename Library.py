@@ -442,10 +442,17 @@ def rearrange_lmfit_2obj(result):
     return arr
     
 # Input a dataframe object to return the mean, std dev, and error on the mean
+#def show_stats(results,runs,value):
+ #   data = pd.DataFrame(np.array([np.mean(results)-value,np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
+  #  data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
+   # return data
+    
 def show_stats(results,runs,value):
-    data = pd.DataFrame(np.array([results.mean().values-value,np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
+    data = pd.DataFrame(np.array([results.mean().values-value,results.std().values,results.std().values/np.sqrt(runs)]),columns=results.columns)
     data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
     return data
+
+    
 
 # Save the information if results have been statistically independent
 def save_data(path,results_deblend,results_true,results_sim):
@@ -626,7 +633,7 @@ def run_over_separation(separation,
                         psf_info,
                         mod_val,est_centroid,randomize,
                         number_run,
-                        create_triangle_plots,
+                        create_tri_plots,
                         x_sep=True,y_sep=False,
                         right_diag=False,left_diag=False):
                                 
@@ -684,14 +691,13 @@ def run_over_separation(separation,
         data_simult = show_stats(results_sim,num_trials,truth)
         
          # Save triangle plots
-        if create_triangle_plots:
+        if create_tri_plots:
             create_triangle_plots(path,
                                   results_deblend,data_dbl,
                                   results_true,data_true,
                                   results_sim,data_simult,
                                   truth,
-                                  x_y_coord,
-                                  randomize)
+                                  x_y_coord,randomize)
                              
         # Save a random image from the set of deblended images
         save_image(path,results_deblend,dbl_im,np.copy(image_params),truth,sep)
@@ -745,28 +751,38 @@ def join_info(separation,
     if x_sep and y_sep: assert right_diag != left_diag, "Can't run through both diagonals of the image."                  
                   
     if x_sep and not y_sep:
-        direction_str = 'x_axis'
+        direction_str = 'x axis'
+        print "Moving objects along " + direction_str
     elif not x_sep and y_sep:
-        direction_str = 'y_axis'
+        direction_str = 'y axis'
+        print "Moving objects along " + direction_str
     elif x_sep and y_sep and right_diag:
         direction_str = 'right diagonal'
+        print "Moving objects along " + direction_str
     elif x_sep and y_sep and left_diag:
         direction_str = 'left diagonal'
-                  
-    
+        print "Moving objects along " + direction_str
+        
+    if psf_info[0]: print "Convolving objects with PSF"
+    if use_est_centroid:
+        print "Not using prior on (x,y) for both objects"
+    else:
+        print "Using prior on (x,y) for both objects"
+    if randomize:
+        print "Randomizing centroids a pixel about median separation"
+        
     sub_dir = ('x_y_prior = ' + str(not use_est_centroid) + '\n' +
               'randomized_x_y = ' + str(randomize) + '\n' +
-              'sep = ' + str(separation) + '\n' +
-              'num_trial_arr = ' + str(num_trial_arr) + '\n' + 
-              'seed_arr = ' + str(seed_arr) + '\n' +
-              'image_params = ' + str(image_params) + '\n' + 
-              'obj_a_info = ' + str(obj_a) + '\n' +
-              'obj_b_info = ' + str(obj_b) + '\n' +
-              'sky_info = ' + str(sky_info) + '(flag,texp,sbar,sky_level)' + '\n'
-              'psf_info = ' + str(psf_info) + '(flag,beta,fwhm)' + '\n' +
+              'sep = ' + str(separation) + ' (arcsec)' + '\n' +
+              'num_trial_arr = ' + str(num_trial_arr) + ' Number of trials for each separation' + '\n' + 
+              'seed_arr = ' + str(seed_arr) + 'Insert into galsim.BaseDeviate' + '\n' +
+              'image_params = ' + str(image_params) + ' (pixel_scale,x_len,y_len) of image' + '\n' + 
+              'obj_a_info = ' + str(obj_a) + ' (flux,hlr,e1,e2,x0,y0)' + '\n' +
+              'obj_b_info = ' + str(obj_b) + ' (flux,hlr,e1,e2,x0,y0)' + '\n' +
+              'sky_info = ' + str(sky_info) + ' (flag,texp,sbar,sky_level)' + '\n'
+              'psf_info = ' + str(psf_info) + ' (flag,beta,fwhm)' + '\n' +
               'separation_axis = ' + direction_str)
-              
-              
+            
     return sub_dir
     
 def create_read_me(info_str,number_run):
@@ -780,8 +796,7 @@ def create_triangle_plots(path,
                           results_true,data_true,
                           results_sim,data_sim,
                           truth,
-                          x_y_coord,
-                          randomize):
+                          x_y_coord,randomize):
     
     max_sigma = pd.Series(np.maximum(np.copy(data_dbl.values[1,:]),
                                      np.copy(data_sim.values[1,:])),
@@ -864,10 +879,16 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     
     assert len(separation) >= 2, "Separation array must be larger than 1"
     
+    #def obtain_min_max_df(df_1,df_2,df_3,df_4):
+     #   max_val = np.max(np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1)))
+      #  min_val = np.min(np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1)))    
+       # return max_val, min_val
+        
     def obtain_min_max_df(df_1,df_2,df_3,df_4):
-        max_val = np.max(np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1)))
-        min_val = np.min(np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1)))    
+        max_val = np.max([df_1.T.max().values,df_2.T.max().values,df_3.T.max().values,df_4.T.max().values])
+        min_val = np.min([df_1.T.min().values,df_2.T.min().values,df_3.T.min().values,df_4.T.min().values])    
         return max_val, min_val
+    
         
     def format_df(df,value_1,value_2,index):
         result = pd.concat([pd.DataFrame(np.array([np.NAN,np.NAN,np.NAN]),columns=[str(value_1)],index=index),

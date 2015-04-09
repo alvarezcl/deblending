@@ -77,7 +77,7 @@ fwhm_psf = 0.7
 psf_info = [psf_flag,beta,fwhm_psf]
 
 # Separations to run through, along the x-axis
-separation = [2.2,2.0,1.8]
+separation = [2.4,2.2,2.0,1.8,1.6,1.4]
 x_sep = True
 y_sep = False
 left_diag = False
@@ -98,7 +98,7 @@ use_est_centroid = False
 randomize = False
 
 # When to save images for checking and outputting place on terminal
-mod_val = 0.5*num_trials
+mod_val = 0.2*num_trials
 
 # Bool for saving triangle plots 
 create_triangle_plots = False
@@ -139,8 +139,8 @@ means, s_means = Library.run_over_separation(separation,
                                              left_diag=left_diag)
                                              
 # Plot the bias information in sub-directory
-fs = 14
-leg_fs = 12
+fs = 15
+leg_fs = 13
 min_offset = 1.3
 max_offset = 1.3
 Library.create_bias_plot_e(number_run,separation,means,s_means,pixel_scale,
