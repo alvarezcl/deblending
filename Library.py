@@ -443,7 +443,7 @@ def rearrange_lmfit_2obj(result):
     
 # Input a dataframe object to return the mean, std dev, and error on the mean
 def show_stats(results,runs,value):
-    data = pd.DataFrame(np.array([np.mean(results)-value,np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
+    data = pd.DataFrame(np.array([results.mean().values-value,np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
     data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
     return data
 
