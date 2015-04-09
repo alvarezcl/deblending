@@ -16,8 +16,8 @@ import galsim
 import numpy as np
 # ----------------------------- Parameters -----------------------------------
 
-# Which run
-number_run = str(1)
+# Which run directory to store information in
+number_run = str(2)
 
 # Galsim function definitions
 func = galsim.Sersic
@@ -43,18 +43,20 @@ flux_a = 25000 # counts
 hlr_a = 1  # arcsec
 e1_a = 0.0 
 e2_a = 0.0
+x0_a = 0
 y0_a = 0
 n_a = 0.5
-obj_a = [flux_a,hlr_a,e1_a,e2_a,0,y0_a,n_a]
+obj_a = [flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a]
 
 # Parameters for object b
 flux_b = 25000 # counts
 hlr_b = hlr_a # arcsec
 e1_b = 0.0
 e2_b = 0.0
+x0_b = 0
 y0_b = 0
 n_b = 0.5
-obj_b = [flux_b,hlr_b,e1_b,e2_b,0,y0_b,n_b]
+obj_b = [flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,n_b]
 
 # Sampling method
 method = 'fft'
@@ -64,46 +66,42 @@ add_noise_flag = True
 texp = 6900 # seconds;
 sbar = 26.8 # sky photons per second per pixel
 sky_level = 0 # For noiseless images 
-sky_noise = np.sqrt(sky_level)
-texp = 0; # For only poisson noise
+if sky_level == 0:
+    texp = 0 # To avoid a seg fault, ensure texp = 0 if sky level is 0
 sky_info = [add_noise_flag,texp,sbar,sky_level]
 
 # psf properties
 psf_flag = False
 beta = 3
-fwhm_psf = 0.6
+fwhm_psf = 0.7
 psf_info = [psf_flag,beta,fwhm_psf]
 
 # Separations to run through, along the x-axis
-separation = [2.2,2.0]
+separation = [2.2,2.0,1.8]
+x_sep = True
+y_sep = False
+left_diag = False
+right_diag = False
 
-# Number of trials to use
+# Number of trials to use for each separation
 num_trials = 20
 num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
 min_sep = 1.0
-factor = 0.4
+factor = 1.0
 sec_num_trial = factor*num_trials
 num_trial_arr[num_trial_arr <= min_sep] = sec_num_trial
 
 # Use true values
-use_est_centroid = True
+use_est_centroid = False
 
 # Do not randomize about median separation
-randomize = True
+randomize = False
 
 # When to save images for checking and outputting place on terminal
 mod_val = 0.5*num_trials
 
 # Bool for saving triangle plots 
 create_triangle_plots = False
-
-# See the 3d plots
-fig_3d = Library.plot_3d_separation(separation,
-                                    func,
-                                    image_params,
-                                    obj_a,obj_b,method,
-                                    sky_info,
-                                    psf_info)
 
 # Create the string of information
 info_str = Library.join_info(separation,
@@ -114,7 +112,9 @@ info_str = Library.join_info(separation,
                              obj_a,obj_b,method,
                              sky_info,
                              psf_info,
-                             mod_val,use_est_centroid,randomize)
+                             mod_val,use_est_centroid,randomize,
+                             x_sep,y_sep,
+                             left_diag,right_diag)
 
 # Create the read me file containing the information of the run                  
 Library.create_read_me(info_str,number_run)
@@ -133,11 +133,15 @@ means, s_means = Library.run_over_separation(separation,
                                              psf_info,
                                              mod_val,use_est_centroid,randomize,
                                              number_run,
-                                             create_triangle_plots)
+                                             create_triangle_plots,
+                                             x_sep=x_sep,y_sep=y_sep,
+                                             right_diag=right_diag,
+                                             left_diag=left_diag)
                                              
 # Plot the bias information in sub-directory
-fs = 13
-min_offset = 1.5
-max_offset = 1.5
-Library.create_bias_plot(number_run,separation,means,s_means,pixel_scale,
-                         fs,min_offset,max_offset)
+fs = 14
+leg_fs = 12
+min_offset = 1.3
+max_offset = 1.3
+Library.create_bias_plot_e(number_run,separation,means,s_means,pixel_scale,
+                           fs,leg_fs,min_offset,max_offset,psf_flag)

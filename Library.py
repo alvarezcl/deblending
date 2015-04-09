@@ -373,8 +373,8 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                                           index=['flux_a','hlr_a','e1_a','e2_a','x0_a','y0_a',
                                                  'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b'])
 
-    p0_a = (truth['flux_a'],truth['hlr_a'],truth['e1_a'],truth['e2_a'],truth['x0_a'],truth['y0_a'])
-    p0_b = (truth['flux_b'],truth['hlr_b'],truth['e1_b'],truth['e2_b'],truth['x0_b'],truth['y0_b'])
+    p0_a_t = (truth['flux_a'],truth['hlr_a'],truth['e1_a'],truth['e2_a'],truth['x0_a'],truth['y0_a'])
+    p0_b_t = (truth['flux_b'],truth['hlr_b'],truth['e1_b'],truth['e2_b'],truth['x0_b'],truth['y0_b'])
 
     image_a_t = create_galaxy(flux_a,hlr_a,e1_a,e2_a,p0_a[4],p0_a[5],galtype_gal=func,sersic_index=n_a,
                             x_len=x_len,y_len=y_len,scale=pixel_scale,
@@ -390,30 +390,30 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     image_b_t = add_noise(image_b_t,seed=seed_3,sky_level=sky_level)
 
     parameters_a = lmfit.Parameters()
-    parameters_a.add('flux', value=p0_a[0])
-    parameters_a.add('hlr', value=p0_a[1])
+    parameters_a.add('flux', value=p0_a_t[0])
+    parameters_a.add('hlr', value=p0_a_t[1])
     #parameters.add('e1_a', value=p0[2],min=-0.99,max=0.99)
     #parameters.add('mag',value=0.99,max=0.99,vary=True)
     #parameters.add('e2_a',expr='sqrt(mag**2 - e1_a**2)')
-    parameters_a.add('e1',value=p0_a[2],min=-lim,max=lim)
-    parameters_a.add('e2',value=p0_a[3],min=-lim,max=lim)
-    parameters_a.add('x0',value=p0_a[4])
-    parameters_a.add('y0',value=p0_a[5])
+    parameters_a.add('e1',value=p0_a_t[2],min=-lim,max=lim)
+    parameters_a.add('e2',value=p0_a_t[3],min=-lim,max=lim)
+    parameters_a.add('x0',value=p0_a_t[4])
+    parameters_a.add('y0',value=p0_a_t[5])
 
     parameters_b = lmfit.Parameters()
-    parameters_b.add('flux', value=p0_b[0])
-    parameters_b.add('hlr', value=p0_b[1])
-    parameters_b.add('e1',value=p0_b[2],min=-lim,max=lim)
-    parameters_b.add('e2',value=p0_b[3],min=-lim,max=lim)
+    parameters_b.add('flux', value=p0_b_t[0])
+    parameters_b.add('hlr', value=p0_b_t[1])
+    parameters_b.add('e1',value=p0_b_t[2],min=-lim,max=lim)
+    parameters_b.add('e2',value=p0_b_t[3],min=-lim,max=lim)
     #parameters.add('e1_b', value=p0[2],min=-0.99,max=0.99)
     #parameters.add('e2_b',expr='sqrt(mag**2 - e1_b**2)')
-    parameters_b.add('x0',value=p0_b[4])
-    parameters_b.add('y0',value=p0_b[5])
+    parameters_b.add('x0',value=p0_b_t[4])
+    parameters_b.add('y0',value=p0_b_t[5])
 
     # Now estimate the shape for each true object
     result_a_true = lmfit.minimize(residual_1_obj, parameters_a, args=(image_a_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_a))
 
-    result_b_true = lmfit.minimize(residual_1_obj, parameters_b, args=(image_b_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_a))
+    result_b_true = lmfit.minimize(residual_1_obj, parameters_b, args=(image_b_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_b))
 
     results_true = pd.Series(np.array([result_a_true.params['flux'].value,
                                        result_a_true.params['hlr'].value,
@@ -592,10 +592,8 @@ def run_batch(num_trials,
             y0_a_est = y0_a
             y0_b_est = y0_b        
         
-        results_deb, results_tr, children = deblend_estimate(np.copy(flux_a).mean(),np.copy(hlr_a).mean(),np.copy(e1_a).mean(),
-                                                             np.copy(e2_a).mean(),np.copy(x0_a_est).mean(),np.copy(y0_a_est).mean(),n_a,
-                                                             np.copy(flux_b).mean(),np.copy(hlr_b).mean(),np.copy(e1_b).mean(),
-                                                             np.copy(e2_b).mean(),np.copy(x0_b_est).mean(),np.copy(y0_b_est).mean(),n_b,
+        results_deb, results_tr, children = deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a_est,y0_a_est,n_a,
+                                                             flux_b,hlr_b,e1_b,e2_b,x0_b_est,y0_b_est,n_a,
                                                              truth,
                                                              sersic_func, seed_4, seed_5, seed_6,
                                                              pixel_scale, x_len, y_len, 
@@ -628,8 +626,10 @@ def run_over_separation(separation,
                         psf_info,
                         mod_val,est_centroid,randomize,
                         number_run,
-                        create_triangle_plots):
-    
+                        create_triangle_plots,
+                        x_sep=True,y_sep=False,
+                        right_diag=False,left_diag=False):
+                                
     means_e1_a = {}
     means_e2_a = {} 
     means_e1_b = {}
@@ -641,10 +641,25 @@ def run_over_separation(separation,
     s_means_e2_b = {}
     
     for i,sep in enumerate(separation):
-        print sep
+        print 'sep = ' + str(sep) + '\"'
         num_trials = num_trial_arr[i]
-        obj_a[4] = -sep/2
-        obj_b[4] = sep/2
+        if x_sep and not y_sep:
+            obj_a[4] = -sep/2
+            obj_b[4] = sep/2
+        elif not x_sep and y_sep:
+            obj_a[5] = -sep/2
+            obj_b[5] = sep/2
+        elif x_sep and y_sep and right_diag:
+            obj_a[4] = -np.cos(np.pi/4)*sep/2
+            obj_a[5] = -np.sin(np.pi/4)*sep/2
+            obj_b[4] = np.cos(np.pi/4)*sep/2
+            obj_b[5] = np.sin(np.pi/4)*sep/2
+        elif x_sep and y_sep and left_diag:
+            obj_a[4] = -np.cos(np.pi/4)*sep/2
+            obj_a[5] = np.sin(np.pi/4)*sep/2
+            obj_b[4] = np.cos(np.pi/4)*sep/2
+            obj_b[5] = -np.sin(np.pi/4)*sep/2
+        
         
         results_deblend, results_true, results_sim, truth, x_y_coord, dbl_im = run_batch(num_trials,
                                                                                  func,
@@ -677,6 +692,9 @@ def run_over_separation(separation,
                                   truth,
                                   x_y_coord,
                                   randomize)
+                             
+        # Save a random image from the set of deblended images
+        save_image(path,results_deblend,dbl_im,np.copy(image_params),truth,sep)
         
         # Obtain the mean values with error on mean values
         index = 0
@@ -719,7 +737,21 @@ def join_info(separation,
               obj_a,obj_b,method,
               sky_info,
               psf_info,
-              mod_val,use_est_centroid,randomize):
+              mod_val,use_est_centroid,randomize,
+              x_sep,y_sep,
+              left_diag,right_diag):
+                
+    if x_sep and y_sep and not right_diag and not left_diag: assert False, "Choose a diagonal."                                    
+    if x_sep and y_sep: assert right_diag != left_diag, "Can't run through both diagonals of the image."                  
+                  
+    if x_sep and not y_sep:
+        direction_str = 'x_axis'
+    elif not x_sep and y_sep:
+        direction_str = 'y_axis'
+    elif x_sep and y_sep and right_diag:
+        direction_str = 'right diagonal'
+    elif x_sep and y_sep and left_diag:
+        direction_str = 'left diagonal'
                   
     
     sub_dir = ('x_y_prior = ' + str(not use_est_centroid) + '\n' +
@@ -729,7 +761,11 @@ def join_info(separation,
               'seed_arr = ' + str(seed_arr) + '\n' +
               'image_params = ' + str(image_params) + '\n' + 
               'obj_a_info = ' + str(obj_a) + '\n' +
-              'obj_b_info = ' + str(obj_b) + '\n')
+              'obj_b_info = ' + str(obj_b) + '\n' +
+              'sky_info = ' + str(sky_info) + '(flag,texp,sbar,sky_level)' + '\n'
+              'psf_info = ' + str(psf_info) + '(flag,beta,fwhm)' + '\n' +
+              'separation_axis = ' + direction_str)
+              
               
     return sub_dir
     
@@ -823,8 +859,8 @@ def create_extents(factor,max_sigma,truth,randomize):
     return extents
 
 
-def create_bias_plot(path,separation,means,s_means,pixel_scale,
-                     fs,min_offset,max_offset):
+def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
+                       fs,leg_fs,min_offset,max_offset,psf_flag):
     
     assert len(separation) >= 2, "Separation array must be larger than 1"
     
@@ -860,66 +896,82 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(18,15))
-    plt.suptitle('Ellipticity Bias for Objects a and b\n vs Separation',fontsize=fs+6)
+    
+    if psf_flag: 
+        suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
+    else:
+        suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
+    plt.suptitle(suptitle,fontsize=fs+6)
 
     ax = fig.add_subplot(gs[0:8,0])
     title = 'e1 for Object a'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
-    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     f_m_e1_a = format_df(means_e1_a,x_min,x_max,means_e1_a.index)
     f_s_m_e1_a = format_df(s_means_e1_a,x_min,x_max,s_means_e1_a.index)
-    f_m_e1_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T)
+    ax = f_m_e1_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T)
+    ax.legend(prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[11:19,0])
     title = 'e1 for Object b'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
     f_m_e1_b = format_df(means_e1_b,x_min,x_max,means_e1_b.index)
     f_s_m_e1_b = format_df(s_means_e1_b,x_min,x_max,s_means_e1_b.index)
-    f_m_e1_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T)
+    ax = f_m_e1_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T)
+    ax.legend(prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[0:8,1])
     title = 'e2 for Object a'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
     f_m_e2_a = format_df(means_e2_a,x_min,x_max,means_e2_a.index)
     f_s_m_e2_a = format_df(s_means_e2_a,x_min,x_max,means_e2_a.index)
-    f_m_e2_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T)
+    ax = f_m_e2_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T)
+    ax.legend(prop={'size':leg_fs})
     
     ax = fig.add_subplot(gs[11:19,1])
     title = 'e2 for Object b'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
     f_m_e2_b = format_df(means_e2_b,x_min,x_max,means_e2_b.index)
     f_s_m_e2_b = format_df(s_means_e2_b,x_min,x_max,s_means_e2_b.index)
-    f_m_e2_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T)
+    ax = f_m_e2_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T)
+    ax.legend(prop={'size':leg_fs})
     
     plt.savefig(path + '/bias_vs_separation.png')
     plt.clf()
     
-def plot_3d(im,fig,gs,i):
+def plot_3d(im,fig,gs,i,sep,fs,cushion):
     x,y = im.array.shape
     domain = np.linspace(1,x,num=x)
     X,Y = np.meshgrid(domain,domain)
-    ax = fig.add_subplot(gs[i,0],projection='3d')
-    ax.scatter(X,Y,im)
-    return ax
+    ax = fig.add_subplot(gs[i:i+cushion,0],projection='3d')
+    ax.scatter(X,Y,im.array)
+    plt.suptitle('Flux Distribution vs Separation\n For PSF Convolved Profiles',fontsize=fs+5)
+    plt.title('\nObject Overlap for Separation of ' + str(sep) + '\"',fontsize=fs)
     
-def plot_3d_separation(separation,
-                       func,
-                       image_params,
-                       obj_a,obj_b,method,
-                       sky_info,
-                       psf_info):
-                           
-    gs = gridspec.GridSpec(len(separation),1)
-    fig = plt.figure(figsize=(16,12))
-    for i,sep in enumerate(separation):
+def plot_3d_sep(separation,
+                func,
+                image_params,
+                obj_a,obj_b,method,
+                sky_info,
+                psf_info,
+                fs,factor,space,size):
+                
+    gs = gridspec.GridSpec((factor+space)*len(separation),1)
+    fig = plt.figure(figsize=size)
+    
+    cushion = np.int((factor*len(separation) - space)/len(separation))
+                    
+    i = 0
+    for sep in separation:
         
+                                   
         obj_a[4] = -sep/2
         obj_b[4] = sep/2
         
@@ -951,9 +1003,80 @@ def plot_3d_separation(separation,
     
         tot_image = image_a + image_b
         
-        plot_3d(tot_image,fig,gs,i)
+        plot_3d(tot_image,fig,gs,i,sep,fs,cushion)
+        
+        i += cushion + space
         
     return fig
-        
-        
-            
+    
+def save_image(path,results_deblend,dbl_im,image_params,truth,sep):
+    image_params = pd.Series(image_params,index=['pixel_scale','x_len','y_len'])
+ 
+    # Access a random set of data for the best fit and compare, access a random index and plot the deblended with fits
+    index = int(len(dbl_im)*np.random.random(1))
+    dbl_obj_im_a = dbl_im[index][0][0]
+    dbl_obj_im_b = dbl_im[index][0][1]
+    index_val = dbl_im[index][1]
+    fit_to_dbl_obj = results_deblend.ix[index_val]
+    
+    # Create the true images of the unblended profiles
+    true_im_a = create_galaxy(truth['flux_a'],truth['hlr_a'],truth['e1_a'],truth['e2_a'],truth['x0_a'],truth['y0_a'],
+                              x_len=image_params['x_len'],y_len=image_params['y_len'],scale=image_params['pixel_scale'])
+    true_im_b = create_galaxy(truth['flux_b'],truth['hlr_b'],truth['e1_b'],truth['e2_b'],truth['x0_b'],truth['y0_b'],
+                              x_len=image_params['x_len'],y_len=image_params['y_len'],scale=image_params['pixel_scale'])
+    
+    # Create the images of the fits to the deblended objects.x_len=image_params['x_len'],y_len=image_params['y_len'],scale=image_params['pixel_scale'])
+    fit_dbl_a = create_galaxy(fit_to_dbl_obj['flux_a'],fit_to_dbl_obj['hlr_a'],fit_to_dbl_obj['e1_a'],fit_to_dbl_obj['e2_a'],fit_to_dbl_obj['x0_a'],fit_to_dbl_obj['y0_a'],
+                              x_len=image_params['x_len'],y_len=image_params['y_len'],scale=image_params['pixel_scale'])
+    fit_dbl_b = create_galaxy(fit_to_dbl_obj['flux_b'],fit_to_dbl_obj['hlr_b'],fit_to_dbl_obj['e1_b'],fit_to_dbl_obj['e2_b'],fit_to_dbl_obj['x0_b'],fit_to_dbl_obj['y0_b'],
+                              x_len=image_params['x_len'],y_len=image_params['y_len'],scale=image_params['pixel_scale'])
+
+    # Plot the fits to the deblended profiles vs the deblended proflies vs the true profiles
+    gs = gridspec.GridSpec(7,9)                                   
+    fig = plt.figure(figsize=(15,25))
+    sh = 0.8
+    plt.suptitle('  True Objects, Deblended Objects & Fits to Deblended Objects\n For Separation: '+ str(sep) + '\"',fontsize=20)
+    
+    # Plot the true blend
+    ax = fig.add_subplot(gs[0,1:7])
+    z = ax.imshow(true_im_a.array + true_im_b.array,interpolation='none',origin='lower'); plt.title('True Blend'); plt.colorbar(z,shrink=sh)
+    
+    # Plot the true objects
+    ax1 = fig.add_subplot(gs[1,0:4])
+    a = ax1.imshow(true_im_a.array,interpolation='none',origin='lower'); plt.title('True Object A'); plt.colorbar(a,shrink=sh)
+    ax2 = fig.add_subplot(gs[1,6:10])
+    b = ax2.imshow(true_im_b.array,interpolation='none',origin='lower'); plt.title('True Object B'); plt.colorbar(b,shrink=sh)
+    
+    # Plot the deblended objects
+    ax3 = fig.add_subplot(gs[2,0:4])
+    c = ax3.imshow(dbl_obj_im_a,interpolation='none',origin='lower'); plt.title('Deblended Object A'); plt.colorbar(c,shrink=sh)
+    ax4 = fig.add_subplot(gs[2,6:10])
+    d = ax4.imshow(dbl_obj_im_b,interpolation='none',origin='lower'); plt.title('Deblended Object B'); plt.colorbar(d,shrink=sh)
+    
+    # Plot the residual of the deblended and the true individual objects
+    ax5 = fig.add_subplot(gs[3,0:4])
+    e = ax5.imshow(dbl_obj_im_a-true_im_a.array,interpolation='none',origin='lower'); plt.title('Residual of Deblended A and True A'); plt.colorbar(e,shrink=sh)
+    ax6 = fig.add_subplot(gs[3,6:10])
+    f = ax6.imshow(dbl_obj_im_b-true_im_b.array,interpolation='none',origin='lower'); plt.title('Residual of Deblended B and True B'); plt.colorbar(f,shrink=sh)
+    
+    # Plot the fits to the deblended objects
+    ax7 = fig.add_subplot(gs[4,0:4])
+    g = ax7.imshow(fit_dbl_a.array,interpolation='none',origin='lower'); plt.title('Fit To Deblended Object A'); plt.colorbar(g,shrink=sh)
+    ax8 = fig.add_subplot(gs[4,6:10])
+    h = ax8.imshow(fit_dbl_b.array,interpolation='none',origin='lower'); plt.title('Fit To Deblended Object B'); plt.colorbar(h,shrink=sh)
+    
+    # Plot the residual of the fit to the deblended to the deblended objects
+    ax9 = fig.add_subplot(gs[5,0:4])
+    i = ax9.imshow(fit_dbl_a.array-dbl_obj_im_a,interpolation='none',origin='lower'); plt.title('Residual Of Fit To Deblended Object A and Deblended A'); plt.colorbar(i,shrink=sh)
+    ax10 = fig.add_subplot(gs[5,6:10])
+    j = ax10.imshow(fit_dbl_b.array-dbl_obj_im_b,interpolation='none',origin='lower'); plt.title('Residual Of Fit To Deblended Object B and Deblended B'); plt.colorbar(j,shrink=sh)
+    
+    # Plot the residual of the fit to the deblended to the true unblended object
+    ax11 = fig.add_subplot(gs[6,0:4])
+    k = ax11.imshow(fit_dbl_a.array-true_im_a.array,interpolation='none',origin='lower'); plt.title('Residual Of Fit To Deblended Object A and True Object A'); plt.colorbar(k,shrink=sh)
+    ax12 = fig.add_subplot(gs[6,6:10])
+    l = ax12.imshow(fit_dbl_b.array-true_im_b.array,interpolation='none',origin='lower'); plt.title('Residual Of Fit To Deblended Object B and True Object B'); plt.colorbar(l,shrink=sh)
+
+    plt.savefig(path + '/images.png')
+    plt.clf()
+    
