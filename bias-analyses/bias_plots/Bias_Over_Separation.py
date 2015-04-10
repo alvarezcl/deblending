@@ -16,7 +16,7 @@ import galsim
 import numpy as np
 
 
-def run_bias_over_separation(dir_num,
+def run_bias_over_separation(dir,
                              psf,
                              est_centroid,
                              random_pixel,
@@ -26,7 +26,10 @@ def run_bias_over_separation(dir_num,
     # ----------------------------- Parameters -----------------------------------
     
     # Which run directory to store information in
-    number_run = str(dir_num)
+    if type(dir) == int:
+        dir = str(dir)
+    elif type(dir) != str:
+        raise ValueError('Directory must be int or str type')
     
     # Galsim function definitions
     func = galsim.Sersic
@@ -114,7 +117,8 @@ def run_bias_over_separation(dir_num,
     create_tri_plots = False
     
     # Create the string of information
-    info_str = Library.join_info(separation,
+    info_str = Library.join_info(dir,
+                                 separation,
                                  num_trial_arr,
                                  func,
                                  seed_int_arr,
@@ -128,7 +132,7 @@ def run_bias_over_separation(dir_num,
                                  create_tri_plots)
     
     # Create the read me file containing the information of the run                  
-    Library.create_read_me(info_str,number_run)
+    Library.create_read_me(info_str,dir)
     
     # Run through different separations and obtain the mean
     # values of e1 and e2 for objects a and b for each method:
@@ -143,7 +147,7 @@ def run_bias_over_separation(dir_num,
                                                  sky_info,
                                                  psf_info,
                                                  mod_val,use_est_centroid,randomize,
-                                                 number_run,
+                                                 dir,
                                                  create_tri_plots,
                                                  x_sep=x_sep,y_sep=y_sep,
                                                  right_diag=right_diag,
@@ -154,11 +158,11 @@ def run_bias_over_separation(dir_num,
     leg_fs = 12
     min_offset = 1.3
     max_offset = 1.3
-    Library.create_bias_plot_e(number_run,separation,means,s_means,pixel_scale,
+    Library.create_bias_plot_e(dir,separation,means,s_means,pixel_scale,
                                fs,leg_fs,min_offset,max_offset,psf_flag)
                                
 if __name__ == '__main__':
-    dir_num = 5
+    dir_num = 1
     psf = False
     est_centroid = False
     random_pixel = False

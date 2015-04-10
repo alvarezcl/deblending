@@ -8,8 +8,6 @@ import numpy as np
 import lmfit
 import deblend
 import pandas as pd
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import os
@@ -452,13 +450,13 @@ def show_stats(results,runs,value):
 def save_data(path,results_deblend,results_true,results_sim):
     # Save files according to type
 
-    dble = path + '/results_deblend_.csv'
+    dble = path + '/results_deblend.csv'
     with open(dble,'a') as f:
         results_deblend.to_csv(f)
-    tru = path + '/results_true_.csv'
+    tru = path + '/results_true.csv'
     with open(tru,'a') as f:
         results_true.to_csv(f)
-    sim = path + '/results_sim_.csv'
+    sim = path + '/results_sim.csv'
     with open(sim,'a') as f:
         results_sim.to_csv(f)
         
@@ -729,7 +727,8 @@ def run_over_separation(separation,
     return means, s_means
     
 # Create an information string for identifiers 
-def join_info(separation,
+def join_info(dir,
+              separation,
               num_trial_arr,
               func,
               seed_arr,
@@ -745,18 +744,20 @@ def join_info(separation,
     if x_sep and y_sep and not right_diag and not left_diag: assert False, "Choose a diagonal."                                    
     if x_sep and y_sep: assert right_diag != left_diag, "Can't run through both diagonals of the image."                  
                   
+    print "\nSaving to the following directory: \"" + dir + '\"\n'                   
+                  
     if x_sep and not y_sep:
         direction_str = 'x axis'
-        print "\nMoving objects along " + direction_str + '\n'
+        print "Moving objects along " + direction_str + '\n'
     elif not x_sep and y_sep:
         direction_str = 'y axis'
-        print "\nMoving objects along " + direction_str + '\n'
+        print "Moving objects along " + direction_str + '\n'
     elif x_sep and y_sep and right_diag:
         direction_str = 'right diagonal'
-        print "\nMoving objects along " + direction_str + '\n'
+        print "Moving objects along " + direction_str + '\n'
     elif x_sep and y_sep and left_diag:
         direction_str = 'left diagonal'
-        print "\nMoving objects along " + direction_str + '\n'
+        print "Moving objects along " + direction_str + '\n'
         
     if psf_info[0]: 
         print "Convolving objects with PSF\n"
@@ -903,7 +904,7 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
                            axis=1)
         return result
            
-    print "Saving bias vs separation plot."   
+    print "\nSaving bias vs separation plot\n."   
     
     means_e1_a = means['means_e1_a']
     means_e2_a = means['means_e2_a']
@@ -930,50 +931,59 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
         suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
     plt.suptitle(suptitle,fontsize=fs+6)
 
-    ax = fig.add_subplot(gs[0:8,0])
-    title = 'e1 for Object a'
+    ax1 = fig.add_subplot(gs[0:8,0])
+    title = 'e1 on Object a'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    plt.xlabel('Separation (arcsec)',fontsize=fs)
+    plt.ylabel('Residual',fontsize=fs)
     f_m_e1_a = format_df(means_e1_a,x_min,x_max,means_e1_a.index)
     f_s_m_e1_a = format_df(s_means_e1_a,x_min,x_max,s_means_e1_a.index)
-    ax = f_m_e1_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
-              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
+    ax1p = f_m_e1_a.T.plot(ax=ax1,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T,legend=True)
+    ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
+                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
+    ax1p.axhline(y=0,ls='--',c='k')
     
-    ax = fig.add_subplot(gs[11:19,0])
-    title = 'e1 for Object b'
+    ax2 = fig.add_subplot(gs[11:19,0])
+    title = 'e1 on Object b'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
-    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    plt.xlabel('Separation (arcsec)',fontsize=fs)
+    plt.ylabel('Residual',fontsize=fs)
     f_m_e1_b = format_df(means_e1_b,x_min,x_max,means_e1_b.index)
     f_s_m_e1_b = format_df(s_means_e1_b,x_min,x_max,s_means_e1_b.index)
-    ax = f_m_e1_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
-              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
+    ax2p = f_m_e1_b.T.plot(ax=ax2,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T,legend=True)
+    ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
+                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
+    ax2p.axhline(y=0,ls='--',c='k')
     
-    ax = fig.add_subplot(gs[0:8,1])
-    title = 'e2 for Object a'
+    ax3 = fig.add_subplot(gs[0:8,1])
+    title = 'e2 on Object a'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
-    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    plt.xlabel('Separation (arcsec)',fontsize=fs)
+    plt.ylabel('Residual',fontsize=fs)
     f_m_e2_a = format_df(means_e2_a,x_min,x_max,means_e2_a.index)
     f_s_m_e2_a = format_df(s_means_e2_a,x_min,x_max,means_e2_a.index)
-    ax = f_m_e2_a.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
-              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
+    ax3p = f_m_e2_a.T.plot(ax=ax3,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T,legend=True)
+    ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
+                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
+    ax3p.axhline(y=0,ls='--',c='k')
     
-    ax = fig.add_subplot(gs[11:19,1])
-    title = 'e2 for Object b'
+    ax4 = fig.add_subplot(gs[11:19,1])
+    title = 'e2 on Object b'
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
-    plt.xlabel('Separation (arcsec)',fontsize=fs); plt.ylabel('Residual',fontsize=fs)
+    plt.xlabel('Separation (arcsec)',fontsize=fs)
+    plt.ylabel('Residual',fontsize=fs)
     f_m_e2_b = format_df(means_e2_b,x_min,x_max,means_e2_b.index)
     f_s_m_e2_b = format_df(s_means_e2_b,x_min,x_max,s_means_e2_b.index)
-    ax = f_m_e2_b.T.plot(ax=ax,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.1),
-              fancybox=True, shadow=True, ncol=4, prop={'size':leg_fs})
+    ax4p = f_m_e2_b.T.plot(ax=ax4,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T,legend=True)
+    ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
+                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
+    ax4p.axhline(y=0,ls='--',c='k')
     
+    print "\nBias vs separation plot finished. Program terminated.\n\n"
     plt.savefig(path + '/bias_vs_separation.png')
     plt.clf()
     plt.close()
@@ -984,7 +994,7 @@ def plot_3d(im,fig,gs,i,sep,fs,cushion):
     X,Y = np.meshgrid(domain,domain)
     ax = fig.add_subplot(gs[i:i+cushion,0],projection='3d')
     ax.scatter(X,Y,im.array)
-    plt.suptitle('Flux Distribution vs Separation\n For PSF Convolved Profiles',fontsize=fs+5)
+    plt.suptitle('Flux Distribution vs Separation',fontsize=fs+5)
     plt.title('\nObject Overlap for Separation of ' + str(sep) + '\"',fontsize=fs)
     
 def plot_3d_sep(separation,
@@ -1112,4 +1122,3 @@ def save_image(path,results_deblend,dbl_im,image_params,truth,sep):
     plt.savefig(path + '/images.png')
     plt.clf()
     plt.close()
-    
