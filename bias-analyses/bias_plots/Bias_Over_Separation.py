@@ -86,14 +86,15 @@ def run_bias_over_separation(dir_num,
     psf_info = [psf_flag,beta,fwhm_psf]
     
     # Separations to run through, along the x-axis
-    separation = [2.4,2.2,2.0,1.8,1.6,1.4,1.2]
+    separation = [2.2,2.0]
+#    separation = [2.4,2.2,2.0,1.8,1.6,1.4,1.2]
     x_sep = x_axis
     y_sep = y_axis
     left_diag = l_diag
     right_diag = r_diag
     
     # Number of trials to use for each separation
-    num_trials = 20
+    num_trials = 15
     num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
     min_sep = 1.0
     factor = 1.0
@@ -110,7 +111,7 @@ def run_bias_over_separation(dir_num,
     mod_val = 0.2*num_trials
     
     # Bool for saving triangle plots 
-    create_tri_plots = True
+    create_tri_plots = False
     
     # Create the string of information
     info_str = Library.join_info(separation,
@@ -149,18 +150,124 @@ def run_bias_over_separation(dir_num,
                                                  left_diag=left_diag)
                                                  
     # Plot the bias information in sub-directory
-    fs = 15
-    leg_fs = 15
+    fs = 14
+    leg_fs = 12
     min_offset = 1.3
     max_offset = 1.3
     Library.create_bias_plot_e(number_run,separation,means,s_means,pixel_scale,
                                fs,leg_fs,min_offset,max_offset,psf_flag)
                                
 if __name__ == '__main__':
-    dir_num = 1
+    dir_num = 5
     psf = False
     est_centroid = False
     random_pixel = False
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 2
+    psf = False
+    est_centroid = True
+    random_pixel = False
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 3
+    psf = False
+    est_centroid = False
+    random_pixel = True
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 4
+    psf = False
+    est_centroid = True
+    random_pixel = True
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+
+    dir_num = 5
+    psf = True
+    est_centroid = False
+    random_pixel = False
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 6
+    psf = True
+    est_centroid = True
+    random_pixel = False
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 7
+    psf = True
+    est_centroid = False
+    random_pixel = True
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    run_bias_over_separation(dir_num,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    dir_num = 8
+    psf = True
+    est_centroid = True
+    random_pixel = True
     x_axis = True
     y_axis = False
     l_diag = False
