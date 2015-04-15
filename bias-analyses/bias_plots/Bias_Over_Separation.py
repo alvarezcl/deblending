@@ -14,9 +14,9 @@ from __future__ import division
 import Library
 import galsim
 import numpy as np
+import os
 
-
-def run_bias_over_separation(dir,
+def run_bias_over_separation(directory,
                              psf,
                              est_centroid,
                              random_pixel,
@@ -26,9 +26,9 @@ def run_bias_over_separation(dir,
     # ----------------------------- Parameters -----------------------------------
     
     # Which run directory to store information in
-    if type(dir) == int:
-        dir = str(dir)
-    elif type(dir) != str:
+    if type(directory) == int:
+        directory = str(directory)
+    elif type(directory) != str:
         raise ValueError('Directory must be int or str type')
     
     # Galsim function definitions
@@ -88,16 +88,15 @@ def run_bias_over_separation(dir,
     fwhm_psf = 0.7
     psf_info = [psf_flag,beta,fwhm_psf]
     
-    # Separations to run through, along the x-axis
-    separation = [2.2,2.0]
-#    separation = [2.4,2.2,2.0,1.8,1.6,1.4,1.2]
+    # Separations to run through, along the axis specified
+    separation = [2.4,2.2,2.0,1.8,1.6,1.4,1.2]
     x_sep = x_axis
     y_sep = y_axis
     left_diag = l_diag
     right_diag = r_diag
     
     # Number of trials to use for each separation
-    num_trials = 15
+    num_trials = 20
     num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
     min_sep = 1.0
     factor = 1.0
@@ -114,10 +113,10 @@ def run_bias_over_separation(dir,
     mod_val = 0.2*num_trials
     
     # Bool for saving triangle plots 
-    create_tri_plots = False
+    create_tri_plots = True
     
     # Create the string of information
-    info_str = Library.join_info(dir,
+    info_str = Library.join_info(directory,
                                  separation,
                                  num_trial_arr,
                                  func,
@@ -132,7 +131,7 @@ def run_bias_over_separation(dir,
                                  create_tri_plots)
     
     # Create the read me file containing the information of the run                  
-    Library.create_read_me(info_str,dir)
+    Library.create_read_me(info_str,directory)
     
     # Run through different separations and obtain the mean
     # values of e1 and e2 for objects a and b for each method:
@@ -147,7 +146,7 @@ def run_bias_over_separation(dir,
                                                  sky_info,
                                                  psf_info,
                                                  mod_val,use_est_centroid,randomize,
-                                                 dir,
+                                                 directory,
                                                  create_tri_plots,
                                                  x_sep=x_sep,y_sep=y_sep,
                                                  right_diag=right_diag,
@@ -158,72 +157,11 @@ def run_bias_over_separation(dir,
     leg_fs = 12
     min_offset = 1.3
     max_offset = 1.3
-    Library.create_bias_plot_e(dir,separation,means,s_means,pixel_scale,
+    Library.create_bias_plot_e(directory,separation,means,s_means,pixel_scale,
                                fs,leg_fs,min_offset,max_offset,psf_flag)
                                
 if __name__ == '__main__':
-    dir_num = 1
-    psf = False
-    est_centroid = False
-    random_pixel = False
-    x_axis = True
-    y_axis = False
-    l_diag = False
-    r_diag = False
-    run_bias_over_separation(dir_num,
-                             psf,
-                             est_centroid,
-                             random_pixel,
-                             x_axis,y_axis,
-                             l_diag,r_diag)
 
-    dir_num = 2
-    psf = False
-    est_centroid = True
-    random_pixel = False
-    x_axis = True
-    y_axis = False
-    l_diag = False
-    r_diag = False
-    run_bias_over_separation(dir_num,
-                             psf,
-                             est_centroid,
-                             random_pixel,
-                             x_axis,y_axis,
-                             l_diag,r_diag)
-
-    dir_num = 3
-    psf = False
-    est_centroid = False
-    random_pixel = True
-    x_axis = True
-    y_axis = False
-    l_diag = False
-    r_diag = False
-    run_bias_over_separation(dir_num,
-                             psf,
-                             est_centroid,
-                             random_pixel,
-                             x_axis,y_axis,
-                             l_diag,r_diag)
-
-    dir_num = 4
-    psf = False
-    est_centroid = True
-    random_pixel = True
-    x_axis = True
-    y_axis = False
-    l_diag = False
-    r_diag = False
-    run_bias_over_separation(dir_num,
-                             psf,
-                             est_centroid,
-                             random_pixel,
-                             x_axis,y_axis,
-                             l_diag,r_diag)
-
-
-    dir_num = 5
     psf = True
     est_centroid = False
     random_pixel = False
@@ -231,29 +169,28 @@ if __name__ == '__main__':
     y_axis = False
     l_diag = False
     r_diag = False
-    run_bias_over_separation(dir_num,
+    dir_str = 'psf:' + str(psf) + ';true_centroid:' + str(not est_centroid) + ';randomization:' + str(random_pixel)
+    run_bias_over_separation(dir_str,
                              psf,
                              est_centroid,
                              random_pixel,
                              x_axis,y_axis,
                              l_diag,r_diag)
 
-    dir_num = 6
     psf = True
     est_centroid = True
     random_pixel = False
     x_axis = True
     y_axis = False
     l_diag = False
-    r_diag = False
-    run_bias_over_separation(dir_num,
+    dir_str = 'psf:' + str(psf) + ';true_centroid:' + str(not est_centroid) + ';randomization:' + str(random_pixel)
+    run_bias_over_separation(dir_str,
                              psf,
                              est_centroid,
                              random_pixel,
                              x_axis,y_axis,
                              l_diag,r_diag)
 
-    dir_num = 7
     psf = True
     est_centroid = False
     random_pixel = True
@@ -261,14 +198,14 @@ if __name__ == '__main__':
     y_axis = False
     l_diag = False
     r_diag = False
-    run_bias_over_separation(dir_num,
+    dir_str = 'psf:' + str(psf) + ';true_centroid:' + str(not est_centroid) + ';randomization:' + str(random_pixel)
+    run_bias_over_separation(dir_str,
                              psf,
                              est_centroid,
                              random_pixel,
                              x_axis,y_axis,
                              l_diag,r_diag)
-
-    dir_num = 8
+    
     psf = True
     est_centroid = True
     random_pixel = True
@@ -276,7 +213,8 @@ if __name__ == '__main__':
     y_axis = False
     l_diag = False
     r_diag = False
-    run_bias_over_separation(dir_num,
+    dir_str = 'psf:' + str(psf) + ';true_centroid:' + str(not est_centroid) + ';randomization:' + str(random_pixel)
+    run_bias_over_separation(dir_str,
                              psf,
                              est_centroid,
                              random_pixel,
