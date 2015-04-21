@@ -207,6 +207,7 @@ def run_2_galaxy_full_params_simple(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                             x_len=x_len,y_len=y_len,scale=pixel_scale,
                             psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf)
     
+    ipdb.set_trace()
     image_no_noise = image_a + image_b                        
     image = image_a + image_b
     if add_noise_flag == True:
@@ -269,9 +270,9 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                      factor_init,
                      plot=False):
                          
+    ipdb.set_trace()
     sky_level = texp*sbar
     sersic_func = func
-
 
     # Create the objects and combine them
     image_a = create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,galtype_gal=func,sersic_index=n_a,
@@ -288,11 +289,8 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     tot_image = image_a + image_b
     if add_noise_flag == True:
         image_noise = add_noise(tot_image,seed=seed_3,sky_level=sky_level)
-        image_c = add_noise(image_a,seed=seed_3,sky_level=sky_level)
-        image_d = add_noise(image_b,seed=seed_3,sky_level=sky_level)
-        image = image_noise
     else:
-        image_noise = tot_image
+        image_noise = np.copy(tot_image.array)
         
 
     # Deblend the resulting blend
@@ -301,7 +299,7 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     peaks_pix = [[p1/0.2 for p1 in peak1],
                  [p2/0.2 for p2 in peak2]]
 
-    templates, template_fractions, children = deblend.deblend(tot_image.array, peaks_pix)
+    templates, template_fractions, children = deblend.deblend(image_noise, peaks_pix)
 
     # Now we can run the fitter to estimate the shape of the children
     # -----------------------------------------------------------------------
@@ -376,15 +374,15 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     p0_a_t = (truth['flux_a'],truth['hlr_a'],truth['e1_a'],truth['e2_a'],truth['x0_a'],truth['y0_a'])
     p0_b_t = (truth['flux_b'],truth['hlr_b'],truth['e1_b'],truth['e2_b'],truth['x0_b'],truth['y0_b'])
 
-    image_a_t = create_galaxy(flux_a,hlr_a,e1_a,e2_a,p0_a[4],p0_a[5],galtype_gal=func,sersic_index=n_a,
-                            x_len=x_len,y_len=y_len,scale=pixel_scale,
-                            psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
-                            method=method, seed=seed_1)
+    image_a_t = create_galaxy(p0_a_t[0],p0_a_t[1],p0_a_t[2],p0_a_t[3],p0_a_t[4],p0_a_t[5],galtype_gal=func,sersic_index=n_a,
+                              x_len=x_len,y_len=y_len,scale=pixel_scale,
+                              psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
+                              method=method, seed=seed_1)
 
-    image_b_t = create_galaxy(flux_b,hlr_b,e1_b,e2_b,p0_b[4],p0_b[5],galtype_gal=func,sersic_index=n_b,
-                            x_len=x_len,y_len=y_len,scale=pixel_scale,
-                            psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
-                            method=method, seed=seed_2)
+    image_b_t = create_galaxy(p0_b_t[0],p0_b_t[1],p0_b_t[2],p0_b_t[3],p0_b_t[4],p0_b_t[5],galtype_gal=func,sersic_index=n_b,
+                              x_len=x_len,y_len=y_len,scale=pixel_scale,
+                              psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
+                              method=method, seed=seed_2)
 
     image_a_t = add_noise(image_a_t,seed=seed_3,sky_level=sky_level)
     image_b_t = add_noise(image_b_t,seed=seed_3,sky_level=sky_level)
@@ -441,8 +439,8 @@ def rearrange_lmfit_2obj(result):
                                'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b'])
     return arr
         
-def show_stats(results,runs,value):
-    data = pd.DataFrame(np.array([results.mean().values-value,results.std().values,results.std().values/np.sqrt(runs)]),columns=results.columns)
+def show_stats(results,runs):
+    data = pd.DataFrame(np.array([np.mean(results),np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
     data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
     return data    
 
@@ -661,14 +659,14 @@ def run_over_separation(separation,
         
         
         results_deblend, results_true, results_sim, truth, x_y_coord, dbl_im = run_batch(num_trials,
-                                                                                 func,
-                                                                                 seed_arr[0],seed_arr[1],seed_arr[2],
-                                                                                 seed_arr[3],seed_arr[4],seed_arr[5],
-                                                                                 image_params,
-                                                                                 obj_a,obj_b,method,
-                                                                                 sky_info,
-                                                                                 psf_info,
-                                                                                 mod_val,est_centroid,randomize)
+                                                                                         func,
+                                                                                         seed_arr[0],seed_arr[1],seed_arr[2],
+                                                                                         seed_arr[3],seed_arr[4],seed_arr[5],
+                                                                                         image_params,
+                                                                                         obj_a,obj_b,method,
+                                                                                         sky_info,
+                                                                                         psf_info,
+                                                                                         mod_val,est_centroid,randomize)
         # Create sub directory to save data from this separation                     
         sub_sub_dir = '/sep:' + str(sep) + ';' + 'num_trials:' + str(num_trials)
         path = number_run + sub_sub_dir
@@ -678,9 +676,9 @@ def run_over_separation(separation,
         save_data(path,results_deblend,results_true,results_sim)        
         
         # Obtain relevant stats
-        data_dbl = show_stats(results_deblend,num_trials,truth)
-        data_true = show_stats(results_true,num_trials,truth)
-        data_simult = show_stats(results_sim,num_trials,truth)
+        data_dbl = show_stats(results_deblend,num_trials)
+        data_true = show_stats(results_true,num_trials)
+        data_simult = show_stats(results_sim,num_trials)
         
          # Save triangle plots
         if create_tri_plots:
@@ -727,7 +725,7 @@ def run_over_separation(separation,
     return means, s_means
     
 # Create an information string for identifiers 
-def join_info(dir,
+def join_info(directory,
               separation,
               num_trial_arr,
               func,
@@ -744,7 +742,7 @@ def join_info(dir,
     if x_sep and y_sep and not right_diag and not left_diag: assert False, "Choose a diagonal."                                    
     if x_sep and y_sep: assert right_diag != left_diag, "Can't run through both diagonals of the image."                  
                   
-    print "\nSaving to the following directory: \"" + dir + '\"\n'                   
+    print "\nSaving data and images to the following directory: \"" + directory + '\"\n'                   
                   
     if x_sep and not y_sep:
         direction_str = 'x axis'
@@ -781,7 +779,7 @@ def join_info(dir,
               'randomized_x_y = ' + str(randomize) + '\n' +
               'sep = ' + str(separation) + ' (arcsec)' + '\n' +
               'num_trial_arr = ' + str(num_trial_arr) + ' Number of trials for each separation' + '\n' + 
-              'seed_arr = ' + str(seed_arr) + 'Insert into galsim.BaseDeviate' + '\n' +
+              'seed_arr = ' + str(seed_arr) + ' Insert into galsim.BaseDeviate' + '\n' +
               'image_params = ' + str(image_params) + ' (pixel_scale,x_len,y_len) of image' + '\n' + 
               'obj_a_info = ' + str(obj_a) + ' (flux,hlr,e1,e2,x0,y0)' + '\n' +
               'obj_b_info = ' + str(obj_b) + ' (flux,hlr,e1,e2,x0,y0)' + '\n' +
@@ -808,18 +806,29 @@ def create_triangle_plots(path,sep,num_trials,
                                      np.copy(data_sim.values[1,:])),
                           index=['flux_a','hlr_a','e1_a','e2_a','x0_a','y0_a',
                                  'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b']) 
-                                     
-    extents = create_extents(2.25,max_sigma,truth,randomize)                          
-    
+                                                               
+    ipdb.set_trace()
+    extents_true = create_extents(3,max_sigma,data_true.iloc[0,:],randomize)
+    extents_sim = create_extents(3,max_sigma,data_sim.iloc[0,:],randomize)
+    extents_dbl = create_extents(3,max_sigma,data_dbl.iloc[0,:],randomize)
     if randomize == True:
         # Join x_y random true locations 
         true_tri = pd.concat([results_true,x_y_coord],axis=1)
         sim_tri = pd.concat([results_sim,x_y_coord],axis=1)
         dbl_tri = pd.concat([results_deblend,x_y_coord],axis=1)
-        extents = extents + [(x_y_coord['x0_a_r'].min(),x_y_coord['x0_a_r'].max()),
-                             (x_y_coord['y0_a_r'].min(),x_y_coord['y0_a_r'].max()),
-                             (x_y_coord['x0_b_r'].min(),x_y_coord['x0_b_r'].max()),
-                             (x_y_coord['y0_b_r'].min(),x_y_coord['y0_b_r'].max())]
+        extents_true = extents_true + [(x_y_coord['x0_a_r'].min(),x_y_coord['x0_a_r'].max()),
+                                       (x_y_coord['y0_a_r'].min(),x_y_coord['y0_a_r'].max()),
+                                       (x_y_coord['x0_b_r'].min(),x_y_coord['x0_b_r'].max()),
+                                       (x_y_coord['y0_b_r'].min(),x_y_coord['y0_b_r'].max())]
+        extents_sim = extents_sim + [(x_y_coord['x0_a_r'].min(),x_y_coord['x0_a_r'].max()),
+                                       (x_y_coord['y0_a_r'].min(),x_y_coord['y0_a_r'].max()),
+                                       (x_y_coord['x0_b_r'].min(),x_y_coord['x0_b_r'].max()),
+                                       (x_y_coord['y0_b_r'].min(),x_y_coord['y0_b_r'].max())]
+        extents_dbl = extents_dbl + [(x_y_coord['x0_a_r'].min(),x_y_coord['x0_a_r'].max()),
+                                       (x_y_coord['y0_a_r'].min(),x_y_coord['y0_a_r'].max()),
+                                       (x_y_coord['x0_b_r'].min(),x_y_coord['x0_b_r'].max()),
+                                       (x_y_coord['y0_b_r'].min(),x_y_coord['y0_b_r'].max())]     
+                                       
         rand_xy = pd.Series([truth['x0_a'],truth['y0_a'],
                              truth['x0_b'],truth['y0_b']],
                              index=['x0_a_r','y0_a_r',
@@ -832,26 +841,26 @@ def create_triangle_plots(path,sep,num_trials,
     
     print "Saving triangle plots"    
     fig_tru = triangle.corner(true_tri,labels=true_tri.columns,truths=truth.values,
-                              show_titles=True, title_args={'fontsize':20},extents=extents)
+                              show_titles=True,title_args={'fontsize':20},extents=extents_true)
     plt.suptitle('Triangle Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/true_fit.png')
+    plt.savefig(path + '/true_fit_triangle_plot.png')
     plt.clf()
     plt.close()
     
     fig_sim = triangle.corner(sim_tri,labels=sim_tri.columns,truths=truth.values,
-                              show_titles=True, title_args={'fontsize':20},extents=extents)
+                              show_titles=True,title_args={'fontsize':20},extents=extents_sim)
     plt.suptitle('Triangle Plot for Simultaneous Fitting to the Deblended Object\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/simult_fit.png')
+    plt.savefig(path + '/simult_fit_triangle_plot.png')
     plt.clf()
     plt.close()
     
     fig_dbl = triangle.corner(dbl_tri,labels=dbl_tri.columns,truths=truth.values,
-                              show_titles=True, title_args={'fontsize':20},extents=extents)
+                              show_titles=True,title_args={'fontsize':20},extents=extents_dbl)
     plt.suptitle('Triangle Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/dbl_fit.png')
+    plt.savefig(path + '/dbl_fit_triangle_plot.png')
     plt.clf()
     plt.close()
-    print "Done saving triangle plots"
+    print "Finished saving triangle plots"
     
         
 def create_extents(factor,max_sigma,truth,randomize):
@@ -892,8 +901,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     assert len(separation) >= 2, "Separation array must be larger than 1"
          
     def obtain_min_max_df(df_1,df_2,df_3,df_4):
-        max_val = np.max([df_1.T.max().values,df_2.T.max().values,df_3.T.max().values,df_4.T.max().values])
-        min_val = np.min([df_1.T.min().values,df_2.T.min().values,df_3.T.min().values,df_4.T.min().values])    
+        max_val = np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1))
+        min_val = np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1))    
         return max_val, min_val
     
         
@@ -904,7 +913,7 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
                            axis=1)
         return result
            
-    print "\nSaving bias vs separation plot\n."   
+    print "\nSaving bias vs separation plot\n"   
     
     means_e1_a = means['means_e1_a']
     means_e2_a = means['means_e2_a']
@@ -927,8 +936,10 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     
     if psf_flag: 
         suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
+        min_sep = 1.6
     else:
         suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
+        min_sep = 1.4
     plt.suptitle(suptitle,fontsize=fs+6)
 
     ax1 = fig.add_subplot(gs[0:8,0])
@@ -942,7 +953,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax1p = f_m_e1_a.T.plot(ax=ax1,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T,legend=True)
     ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax1p.axhline(y=0,ls='--',c='k')
+    ax1p.axhline(y=0,ls='--',c='k',linestyle='--')
+    ax1p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax2 = fig.add_subplot(gs[11:19,0])
     title = 'e1 on Object b'
@@ -955,7 +967,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax2p = f_m_e1_b.T.plot(ax=ax2,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T,legend=True)
     ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax2p.axhline(y=0,ls='--',c='k')
+    ax2p.axhline(y=0,ls='--',c='k',linestyle='--')
+    ax2p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax3 = fig.add_subplot(gs[0:8,1])
     title = 'e2 on Object a'
@@ -968,7 +981,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax3p = f_m_e2_a.T.plot(ax=ax3,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T,legend=True)
     ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
-    ax3p.axhline(y=0,ls='--',c='k')
+    ax3p.axhline(y=0,ls='--',c='k',linestyle='--')
+    ax3p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax4 = fig.add_subplot(gs[11:19,1])
     title = 'e2 on Object b'
@@ -981,7 +995,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax4p = f_m_e2_b.T.plot(ax=ax4,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T,legend=True)
     ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax4p.axhline(y=0,ls='--',c='k')
+    ax4p.axhline(y=0,ls='--',c='k',linestyle='--')
+    ax4p.axvline(x=min_sep,c='c',linestyle='--')
     
     print "\nBias vs separation plot finished. Program terminated.\n\n"
     plt.savefig(path + '/bias_vs_separation.png')
@@ -1119,6 +1134,6 @@ def save_image(path,results_deblend,dbl_im,image_params,truth,sep):
     ax12 = fig.add_subplot(gs[6,6:10])
     l = ax12.imshow(fit_dbl_b.array-true_im_b.array,interpolation='none',origin='lower'); plt.title('Residual Of Fit To Deblended Object B and True Object B'); plt.colorbar(l,shrink=sh)
 
-    plt.savefig(path + '/images.png')
+    plt.savefig(path + '/image_of_one_trial.png')
     plt.clf()
     plt.close()
