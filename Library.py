@@ -13,6 +13,7 @@ import matplotlib.gridspec as gridspec
 import os
 import scipy
 import triangle
+import seaborn as sb
 from scipy import interpolate
 from mpl_toolkits.mplot3d import Axes3D
 import ipdb
@@ -207,7 +208,6 @@ def run_2_galaxy_full_params_simple(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                             x_len=x_len,y_len=y_len,scale=pixel_scale,
                             psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf)
     
-    ipdb.set_trace()
     image_no_noise = image_a + image_b                        
     image = image_a + image_b
     if add_noise_flag == True:
@@ -270,7 +270,6 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                      factor_init,
                      plot=False):
                          
-    ipdb.set_trace()
     sky_level = texp*sbar
     sersic_func = func
 
@@ -299,7 +298,7 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     peaks_pix = [[p1/0.2 for p1 in peak1],
                  [p2/0.2 for p2 in peak2]]
 
-    templates, template_fractions, children = deblend.deblend(image_noise, peaks_pix)
+    templates, template_fractions, children = deblend.deblend(image_noise.array, peaks_pix)
 
     # Now we can run the fitter to estimate the shape of the children
     # -----------------------------------------------------------------------
@@ -807,7 +806,6 @@ def create_triangle_plots(path,sep,num_trials,
                           index=['flux_a','hlr_a','e1_a','e2_a','x0_a','y0_a',
                                  'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b']) 
                                                                
-    ipdb.set_trace()
     extents_true = create_extents(3,max_sigma,data_true.iloc[0,:],randomize)
     extents_sim = create_extents(3,max_sigma,data_sim.iloc[0,:],randomize)
     extents_dbl = create_extents(3,max_sigma,data_dbl.iloc[0,:],randomize)
@@ -838,12 +836,22 @@ def create_triangle_plots(path,sep,num_trials,
         true_tri = results_true
         sim_tri = results_sim
         dbl_tri = results_deblend
-    
+
+    sb.set(style='darkgrid')
+    cmap = sb.diverging_palette(220,10,as_cmap=True)
     print "Saving triangle plots"    
     fig_tru = triangle.corner(true_tri,labels=true_tri.columns,truths=truth.values,
                               show_titles=True,title_args={'fontsize':20},extents=extents_true)
     plt.suptitle('Triangle Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
     plt.savefig(path + '/true_fit_triangle_plot.png')
+    plt.clf()
+    plt.close()
+
+    fig = plt.figure(figsize=(20,20))
+    plt.suptitle('Correlation Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
+    ax = fig.add_subplot()
+    corr_tru = sb.corrplot(true_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
+    plt.savefig(path + '/true_fit_correlation_plot.png')
     plt.clf()
     plt.close()
     
@@ -853,13 +861,30 @@ def create_triangle_plots(path,sep,num_trials,
     plt.savefig(path + '/simult_fit_triangle_plot.png')
     plt.clf()
     plt.close()
+
+    fig = plt.figure(figsize=(20,20))
+    plt.suptitle('Correlation Plot for Simultaneous Fitting to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
+    ax = fig.add_subplot()
+    corr_sim = sb.corrplot(sim_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
+    plt.savefig(path + '/simult_fit_correlation_plot.png')
+    plt.clf()
+    plt.close()
     
     fig_dbl = triangle.corner(dbl_tri,labels=dbl_tri.columns,truths=truth.values,
                               show_titles=True,title_args={'fontsize':20},extents=extents_dbl)
     plt.suptitle('Triangle Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/dbl_fit_triangle_plot.png')
+    plt.savefig(path + '/deblend_fit_triangle_plot.png')
     plt.clf()
     plt.close()
+
+    fig = plt.figure(figsize=(20,20))
+    plt.suptitle('Correlation Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
+    ax = fig.add_subplot()
+    corr_tru = sb.corrplot(dbl_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
+    plt.savefig(path + '/deblend_fit_correlation_plot.png')
+    plt.clf()
+    plt.close()
+    
     print "Finished saving triangle plots"
     
         
@@ -901,8 +926,8 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     assert len(separation) >= 2, "Separation array must be larger than 1"
          
     def obtain_min_max_df(df_1,df_2,df_3,df_4):
-        max_val = np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1))
-        min_val = np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1))    
+        max_val = np.max(np.max(pd.concat([np.max(df_1.T),np.max(df_2.T),np.max(df_3.T),np.max(df_4.T)],axis=1)))
+        min_val = np.min(np.min(pd.concat([np.min(df_1.T),np.min(df_2.T),np.min(df_3.T),np.min(df_4.T)],axis=1)))    
         return max_val, min_val
     
         
@@ -954,7 +979,6 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax1p.axhline(y=0,ls='--',c='k',linestyle='--')
-    ax1p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax2 = fig.add_subplot(gs[11:19,0])
     title = 'e1 on Object b'
@@ -968,7 +992,6 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax2p.axhline(y=0,ls='--',c='k',linestyle='--')
-    ax2p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax3 = fig.add_subplot(gs[0:8,1])
     title = 'e2 on Object a'
@@ -982,7 +1005,6 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
     ax3p.axhline(y=0,ls='--',c='k',linestyle='--')
-    ax3p.axvline(x=min_sep,c='c',linestyle='--')
     
     ax4 = fig.add_subplot(gs[11:19,1])
     title = 'e2 on Object b'
@@ -996,7 +1018,6 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
     ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax4p.axhline(y=0,ls='--',c='k',linestyle='--')
-    ax4p.axvline(x=min_sep,c='c',linestyle='--')
     
     print "\nBias vs separation plot finished. Program terminated.\n\n"
     plt.savefig(path + '/bias_vs_separation.png')

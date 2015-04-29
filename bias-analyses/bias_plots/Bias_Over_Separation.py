@@ -14,7 +14,6 @@ from __future__ import division
 import Library
 import galsim
 import numpy as np
-import os
 
 def run_bias_over_separation(directory,
                              psf,
@@ -89,14 +88,14 @@ def run_bias_over_separation(directory,
     psf_info = [psf_flag,beta,fwhm_psf]
     
     # Separations to run through, along the axis specified
-    separation = [2.4,2.2,2.0,1.8,1.6,1.4,1.2]
+    separation = [2.4,2.2,2.0,1.8,1.6,1.4]
     x_sep = x_axis
     y_sep = y_axis
     left_diag = l_diag
     right_diag = r_diag
     
     # Number of trials to use for each separation
-    num_trials = 20
+    num_trials = 1000
     num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
     min_sep = 1.0
     factor = 1.0
@@ -162,7 +161,22 @@ def run_bias_over_separation(directory,
                                
 if __name__ == '__main__':
 
-    psf = True
+    psf = False
+    est_centroid = True
+    random_pixel = False
+    x_axis = True
+    y_axis = False
+    l_diag = False
+    r_diag = False
+    dir_str = 'psf:' + str(psf) + ';true_centroid:' + str(not est_centroid) + ';randomization:' + str(random_pixel)
+    run_bias_over_separation(dir_str,
+                             psf,
+                             est_centroid,
+                             random_pixel,
+                             x_axis,y_axis,
+                             l_diag,r_diag)
+
+    psf = False
     est_centroid = False
     random_pixel = False
     x_axis = True
@@ -176,6 +190,3 @@ if __name__ == '__main__':
                              random_pixel,
                              x_axis,y_axis,
                              l_diag,r_diag)
-                             
-
-    
