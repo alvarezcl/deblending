@@ -14,6 +14,7 @@ from __future__ import division
 import Library
 import galsim
 import numpy as np
+import pandas as pd
 
 def run_bias_over_separation(directory,
                              psf,
@@ -68,6 +69,11 @@ def run_bias_over_separation(directory,
     y0_b = 0
     n_b = 0.5
     obj_b = [flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,n_b]
+    
+    truth = pd.Series(np.array([flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,
+                                flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b]),
+                                index=['flux_a','hlr_a','e1_a','e2_a','x0_a','y0_a',
+                                       'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b'])
     
     # Sampling method
     method = 'fft'
@@ -136,34 +142,41 @@ def run_bias_over_separation(directory,
     # values of e1 and e2 for objects a and b for each method:
     # fits to the true objects, simultaneous fits, and fits to the
     # deblended objects
-    means, s_means = Library.run_over_separation(separation,
-                                                 num_trial_arr,
-                                                 func,
-                                                 seed_rng_arr,
-                                                 image_params,
-                                                 obj_a,obj_b,method,
-                                                 sky_info,
-                                                 psf_info,
-                                                 mod_val,use_est_centroid,randomize,
-                                                 directory,
-                                                 create_tri_plots,
-                                                 x_sep=x_sep,y_sep=y_sep,
-                                                 right_diag=right_diag,
-                                                 left_diag=left_diag)
+    means_e, s_means_e, means_fl_hlr, s_means_fl_hlr, means_x0_y0, s_means_x0_y0 = Library.run_over_separation(separation,
+                                                                                                               num_trial_arr,
+                                                                                                               func,
+                                                                                                               seed_rng_arr,
+                                                                                                               image_params,
+                                                                                                               obj_a,obj_b,method,
+                                                                                                               sky_info,
+                                                                                                               psf_info,
+                                                                                                               mod_val,use_est_centroid,randomize,
+                                                                                                               directory,
+                                                                                                               create_tri_plots,
+                                                                                                               x_sep=x_sep,y_sep=y_sep,
+                                                                                                               right_diag=right_diag,
+                                                                                                               left_diag=left_diag)
                                                  
     # Plot the bias information in sub-directory
     fs = 14
     leg_fs = 12
     min_offset = 1.3
     max_offset = 1.3
-    Library.create_bias_plot_e(directory,separation,means,s_means,pixel_scale,
-                               fs,leg_fs,min_offset,max_offset,psf_flag)
+    Library.create_bias_plot(directory,separation,means_e,s_means_e,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'e1,e2',
+                             truth)
+    Library.create_bias_plot(directory,separation,means_fl_hlr,s_means_fl_hlr,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'flux,hlr',
+                             truth)
+    Library.create_bias_plot(directory,separation,means_x0_y0,s_means_x0_y0,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'x0,y0',
+                             truth)
                                
 if __name__ == '__main__':
 
     psf = False
     est_centroid = True
-    random_pixel = False
+    random_pixel = True
     x_axis = True
     y_axis = False
     l_diag = False
@@ -175,10 +188,10 @@ if __name__ == '__main__':
                              random_pixel,
                              x_axis,y_axis,
                              l_diag,r_diag)
-
-    psf = False
-    est_centroid = False
-    random_pixel = False
+                             
+    psf = True
+    est_centroid = True
+    random_pixel = True
     x_axis = True
     y_axis = False
     l_diag = False

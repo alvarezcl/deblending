@@ -444,18 +444,29 @@ def show_stats(results,runs):
     return data    
 
 # Save the information if results have been statistically independent
-def save_data(path,results_deblend,results_true,results_sim):
+def save_data(path,results_deblend,results_true,results_sim,identifier):
     # Save files according to type
 
-    dble = path + '/results_deblend.csv'
-    with open(dble,'a') as f:
-        results_deblend.to_csv(f)
-    tru = path + '/results_true.csv'
-    with open(tru,'a') as f:
-        results_true.to_csv(f)
-    sim = path + '/results_sim.csv'
-    with open(sim,'a') as f:
-        results_sim.to_csv(f)
+    if identifier == 'raw':
+        dble = path + '/results_deblend.csv'
+        with open(dble,'a') as f:
+            results_deblend.to_csv(f)
+        tru = path + '/results_true.csv'
+        with open(tru,'a') as f:
+            results_true.to_csv(f)
+        sim = path + '/results_sim.csv'
+        with open(sim,'a') as f:
+            results_sim.to_csv(f)
+    elif identifier == 'resid':
+        dble = path + '/residual_deblend.csv'
+        with open(dble,'a') as f:
+            results_deblend.to_csv(f)
+        tru = path + '/residual_true.csv'
+        with open(tru,'a') as f:
+            results_true.to_csv(f)
+        sim = path + '/residual_sim.csv'
+        with open(sim,'a') as f:
+            results_sim.to_csv(f)
         
 # Calculate the SNR for a given noisy image.        
 def calcSNR(im, texp, sbar, weight):
@@ -625,20 +636,124 @@ def run_over_separation(separation,
                         create_tri_plots,
                         x_sep=True,y_sep=False,
                         right_diag=False,left_diag=False):
-                                
-    means_e1_a = {}
-    means_e2_a = {} 
-    means_e1_b = {}
-    means_e2_b = {}
+                            
+    """ Loop through different separations, running many trials
+    estimating the parameters of a blended image using simultaneous
+    fitting, deblending, and the true objects. 
     
-    s_means_e1_a = {}
-    s_means_e2_a = {}
-    s_means_e1_b = {}
-    s_means_e2_b = {}
+    Keyword Arguments:
+    separation -- the list of separation values
+    num_trial_arr -- the list of number of trials for each separation
+    func -- galsim function definition of objects
+    seed_arr -- list of galsim seed objects
+    image_params -- list of image parameters for image [pixel_scale,x_len,y_len] 
+    obj_a -- list of object a true parameters [flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a]
+    obj_b -- list of object b true parameters [flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,n_b]
+    method -- method for generating objects in galsim
+    sky_info -- list of parameters for sky noise [add_noise_flag,texp,sbar,sky_level]
+    psf_info -- list of parameters for Moffat PSF [psf_flag,beta,fwhm_psf]
+    mod_val -- value in which to mod number of trials for output of progress to terminal
+    est_centroid -- boolean for using simultaneous fitting ouput to deblender
+    randomize -- boolean for randomizing x,y coordinates by 1 pixel
+    number_run -- path name in which to store run information
+    create_tri_plots -- boolean for creating and storing triangle plots
+    x_sep -- boolean for moving objects across horizontal axis (default True)
+    y_sep -- boolean for moving objects across vertical axis (default False)
+    right_diag -- boolean for moving objects across right diagonal (default False)
+    left_diag -- boolean for moving objects across left diagonal (default False)
     
+    """
+    
+    def create_resid_pd(results_deblend,
+                        results_true,
+                        results_sim,
+                        truth,
+                        x_y_coord,
+                        randomize):
+                        
+        """ Helper function for creating residual data. """
+                            
+        if not randomize:
+            resid_deblend = results_deblend - truth
+            resid_true = results_true - truth
+            resid_sim = results_sim - truth
+        else:
+            alt_truth = truth.copy()
+            alt_truth['x0_a'] = 0; alt_truth['y0_a'] = 0;
+            alt_truth['x0_b'] = 0; alt_truth['y0_b'] = 0;
+            
+            resid_deblend = results_deblend.copy()
+            resid_deblend['x0_a'] = resid_deblend['x0_a'] - x_y_coord['x0_a_r']
+            resid_deblend['y0_a'] = resid_deblend['y0_a'] - x_y_coord['y0_a_r']
+            resid_deblend['x0_b'] = resid_deblend['x0_b'] - x_y_coord['x0_b_r']
+            resid_deblend['y0_b'] = resid_deblend['y0_b'] - x_y_coord['y0_b_r']
+            resid_deblend = resid_deblend - alt_truth
+            
+            resid_true = results_true.copy()
+            resid_true['x0_a'] = resid_true['x0_a'] - x_y_coord['x0_a_r']
+            resid_true['y0_a'] = resid_true['y0_a'] - x_y_coord['y0_a_r']
+            resid_true['x0_b'] = resid_true['x0_b'] - x_y_coord['x0_b_r']
+            resid_true['y0_b'] = resid_true['y0_b'] - x_y_coord['y0_b_r']
+            resid_true = resid_true - alt_truth
+            
+            resid_sim = results_sim.copy()
+            resid_sim['x0_a'] = resid_sim['x0_a'] - x_y_coord['x0_a_r']
+            resid_sim['y0_a'] = resid_sim['y0_a'] - x_y_coord['y0_a_r']
+            resid_sim['x0_b'] = resid_sim['x0_b'] - x_y_coord['x0_b_r']
+            resid_sim['y0_b'] = resid_sim['y0_b'] - x_y_coord['y0_b_r']
+            resid_sim = resid_sim - alt_truth
+            
+        return resid_deblend, resid_true, resid_sim
+    
+    def insert_data(dict1,dict2,dict3,dict4,sep,
+                    data_dbl,data_true,data_simult,
+                    identifier,index):
+                    
+        """ Helper function for inserting data from runs. """
+                        
+        if identifier == 'e1,e2':
+            dict1[str(sep)] = np.array([data_dbl['e1_a'][index],data_true['e1_a'][index],data_simult['e1_a'][index]])
+            dict2[str(sep)] = np.array([data_dbl['e2_a'][index],data_true['e2_a'][index],data_simult['e2_a'][index]])
+            dict3[str(sep)] = np.array([data_dbl['e1_b'][index],data_true['e1_b'][index],data_simult['e1_b'][index]])
+            dict4[str(sep)] = np.array([data_dbl['e2_b'][index],data_true['e2_b'][index],data_simult['e2_b'][index]])
+
+        elif identifier == 'flux,hlr':
+            dict1[str(sep)] = np.array([data_dbl['flux_a'][index],data_true['flux_a'][index],data_simult['flux_a'][index]])
+            dict2[str(sep)] = np.array([data_dbl['hlr_a'][index],data_true['hlr_a'][index],data_simult['hlr_a'][index]])
+            dict3[str(sep)] = np.array([data_dbl['flux_b'][index],data_true['flux_b'][index],data_simult['flux_b'][index]])
+            dict4[str(sep)] = np.array([data_dbl['hlr_b'][index],data_true['hlr_b'][index],data_simult['hlr_b'][index]])
+            
+        elif identifier == 'x0,y0':
+            dict1[str(sep)] = np.array([data_dbl['x0_a'][index],data_true['x0_a'][index],data_simult['x0_a'][index]])
+            dict2[str(sep)] = np.array([data_dbl['y0_a'][index],data_true['y0_a'][index],data_simult['y0_a'][index]])
+            dict3[str(sep)] = np.array([data_dbl['x0_b'][index],data_true['x0_b'][index],data_simult['x0_b'][index]])
+            dict4[str(sep)] = np.array([data_dbl['y0_b'][index],data_true['y0_b'][index],data_simult['y0_b'][index]])
+                   
+    def create_dict():
+        """ Helper function for creating four dictionaries. """
+        a = {}; b = {}; c = {}; d = {};
+        return a,b,c,d
+                   
+    means_e1_a, means_e2_a, means_e1_b, means_e2_b = create_dict()
+    
+    s_means_e1_a, s_means_e2_a, s_means_e1_b, s_means_e2_b = create_dict()
+    
+    means_flux_a, means_hlr_a, means_flux_b, means_hlr_b = create_dict()
+    
+    s_means_flux_a, s_means_hlr_a, s_means_flux_b, s_means_hlr_b = create_dict()
+    
+    means_x0_a, means_y0_a, means_x0_b, means_y0_b = create_dict()
+    
+    s_means_x0_a, s_means_y0_a, s_means_x0_b, s_means_y0_b = create_dict()
+    
+    # Access each separation value from the array
     for i,sep in enumerate(separation):
+        # Print to the terminal which separation the program is currently on
         print 'sep = ' + str(sep) + '\"'
+        # Access the number of trials in the corresponding array
         num_trials = num_trial_arr[i]
+        
+        # Modify obj arrays corresponding to axis
         if x_sep and not y_sep:
             obj_a[4] = -sep/2
             obj_b[4] = sep/2
@@ -656,7 +771,7 @@ def run_over_separation(separation,
             obj_b[4] = np.cos(np.pi/4)*sep/2
             obj_b[5] = -np.sin(np.pi/4)*sep/2
         
-        
+        # Run the simultaneous fitter and the deblender and output the results
         results_deblend, results_true, results_sim, truth, x_y_coord, dbl_im = run_batch(num_trials,
                                                                                          func,
                                                                                          seed_arr[0],seed_arr[1],seed_arr[2],
@@ -666,62 +781,111 @@ def run_over_separation(separation,
                                                                                          sky_info,
                                                                                          psf_info,
                                                                                          mod_val,est_centroid,randomize)
+
+
+        # Obtain the residuals using the truth values and the x,y coordinates 
+        # if randomization was used.
+        resid_deblend, resid_true, resid_sim = create_resid_pd(results_deblend,
+                                                               results_true,
+                                                               results_sim,
+                                                               truth,
+                                                               x_y_coord,
+                                                               randomize)
+                                                               
+                                                                                         
+
         # Create sub directory to save data from this separation                     
         sub_sub_dir = '/sep:' + str(sep) + ';' + 'num_trials:' + str(num_trials)
         path = number_run + sub_sub_dir
         os.mkdir(path)
         
         # Save data
-        save_data(path,results_deblend,results_true,results_sim)        
+        save_data(path,results_deblend,results_true,results_sim,'raw')
+        save_data(path,resid_deblend,resid_true,resid_sim,'resid')
+        
         
         # Obtain relevant stats
-        data_dbl = show_stats(results_deblend,num_trials)
-        data_true = show_stats(results_true,num_trials)
-        data_simult = show_stats(results_sim,num_trials)
+        data_dbl_raw = obtain_stats(results_deblend,num_trials)
+        data_true_raw = obtain_stats(results_true,num_trials)
+        data_simult_raw = obtain_stats(results_sim,num_trials)
+        
+        data_dbl_resid = obtain_stats(resid_deblend,num_trials)
+        data_true_resid = obtain_stats(resid_true,num_trials)
+        data_simult_resid = obtain_stats(resid_sim,num_trials)
         
          # Save triangle plots
         if create_tri_plots:
             create_triangle_plots(path,sep,num_trials,
-                                  results_deblend,data_dbl,
-                                  results_true,data_true,
-                                  results_sim,data_simult,
+                                  results_deblend,data_dbl_raw,
+                                  results_true,data_true_raw,
+                                  results_sim,data_simult_raw,
                                   truth,
-                                  x_y_coord,randomize)
+                                  x_y_coord,randomize,'raw')
+                                  
+                                  
+            alt_truth = truth.copy()
+            ipdb.set_trace()
+            alt_truth[0:12] = 0                                  
+            create_triangle_plots(path,sep,num_trials,
+                                  resid_deblend,data_dbl_resid,
+                                  resid_true,data_true_resid,
+                                  resid_sim,data_simult_resid,
+                                  alt_truth,
+                                  x_y_coord,randomize,'resid')
                              
         # Save a random image from the set of deblended images
         save_image(path,results_deblend,dbl_im,np.copy(image_params),truth,sep)
         
         # Obtain the mean values with error on mean values
+        # index variable refers to which row of information
+        # index of 0 corresponds to mean values
         index = 0
-        means_e1_a[str(sep)] = np.array([data_dbl['e1_a'][index],data_true['e1_a'][index],data_simult['e1_a'][index]])
-        means_e2_a[str(sep)] = np.array([data_dbl['e2_a'][index],data_true['e2_a'][index],data_simult['e2_a'][index]])
-        means_e1_b[str(sep)] = np.array([data_dbl['e1_b'][index],data_true['e1_b'][index],data_simult['e1_b'][index]])
-        means_e2_b[str(sep)] = np.array([data_dbl['e2_b'][index],data_true['e2_b'][index],data_simult['e2_b'][index]])
+        insert_data(means_e1_a,means_e2_a,means_e1_b,means_e2_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'e1,e2',index)
+                    
+        insert_data(means_flux_a,means_hlr_a,means_flux_b,means_hlr_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'flux,hlr',index)
+                    
+        insert_data(means_x0_a,means_y0_a,means_x0_b,means_y0_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'x0,y0',index)
+                    
+        # index of 2 corresponds to error on mean values
         index = 2
-        s_means_e1_a[str(sep)] = np.array([data_dbl['e1_a'][index],data_true['e1_a'][index],data_simult['e1_a'][index]])
-        s_means_e2_a[str(sep)] = np.array([data_dbl['e2_a'][index],data_true['e2_a'][index],data_simult['e2_a'][index]])
-        s_means_e1_b[str(sep)] = np.array([data_dbl['e1_b'][index],data_true['e1_b'][index],data_simult['e1_b'][index]])
-        s_means_e2_b[str(sep)] = np.array([data_dbl['e2_b'][index],data_true['e2_b'][index],data_simult['e2_b'][index]])
+        insert_data(s_means_e1_a,s_means_e2_a,s_means_e1_b,s_means_e2_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'e1,e2',index)
+                    
+        insert_data(s_means_flux_a,s_means_hlr_a,s_means_flux_b,s_means_hlr_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'flux,hlr',index)
+                    
+        insert_data(s_means_x0_a,s_means_y0_a,s_means_x0_b,s_means_y0_b,sep,
+                    data_dbl_resid,data_true_resid,data_simult_resid,
+                    'x0,y0',index)             
     
-    # Convert to DataFrame objects
-    index = ['Deblending','True','Simultaneous Fitting']
-    means_e1_a = pd.DataFrame(means_e1_a,index=index)
-    means_e2_a = pd.DataFrame(means_e2_a,index=index)
-    means_e1_b = pd.DataFrame(means_e1_b,index=index)
-    means_e2_b = pd.DataFrame(means_e2_b,index=index)
-    s_means_e1_a = pd.DataFrame(s_means_e1_a,index=index)
-    s_means_e2_a = pd.DataFrame(s_means_e2_a,index=index)
-    s_means_e1_b = pd.DataFrame(s_means_e1_b,index=index)
-    s_means_e2_b = pd.DataFrame(s_means_e2_b,index=index)
-    
-    
-    means = {'means_e1_a':means_e1_a,'means_e2_a':means_e2_a,
+    # Store the information in dictionaries
+    means_e = {'means_e1_a':means_e1_a,'means_e2_a':means_e2_a,
              'means_e1_b':means_e1_b,'means_e2_b':means_e2_b}
              
-    s_means = {'s_means_e1_a':s_means_e1_a,'s_means_e2_a':s_means_e2_a,
-             's_means_e1_b':s_means_e1_b,'s_means_e2_b':s_means_e2_b}
+    means_flux_hlr = {'means_flux_a':means_flux_a,'means_hlr_a':means_hlr_a,
+                      'means_flux_b':means_flux_b,'means_hlr_b':means_hlr_b}
+                      
+    means_x0_y0 = {'means_x0_a':means_x0_a,'means_y0_a':means_y0_a,
+                   'means_x0_b':means_x0_b,'means_y0_b':means_y0_b}
              
-    return means, s_means
+    s_means_e = {'s_means_e1_a':s_means_e1_a,'s_means_e2_a':s_means_e2_a,
+                 's_means_e1_b':s_means_e1_b,'s_means_e2_b':s_means_e2_b}
+                 
+    s_means_flux_hlr = {'s_means_flux_a':s_means_flux_a,'s_means_hlr_a':s_means_hlr_a,
+                        's_means_flux_b':s_means_flux_b,'s_means_hlr_b':s_means_hlr_b}
+                        
+    s_means_x0_y0 = {'s_means_x0_a':s_means_x0_a,'s_means_y0_a':s_means_y0_a,
+                     's_means_x0_b':s_means_x0_b,'s_means_y0_b':s_means_y0_b}
+                        
+    return means_e, s_means_e, means_flux_hlr, s_means_flux_hlr, means_x0_y0, s_means_x0_y0
     
 # Create an information string for identifiers 
 def join_info(directory,
@@ -799,7 +963,7 @@ def create_triangle_plots(path,sep,num_trials,
                           results_true,data_true,
                           results_sim,data_sim,
                           truth,
-                          x_y_coord,randomize):
+                          x_y_coord,randomize,identifier):
     
     max_sigma = pd.Series(np.maximum(np.copy(data_dbl.values[1,:]),
                                      np.copy(data_sim.values[1,:])),
@@ -843,7 +1007,10 @@ def create_triangle_plots(path,sep,num_trials,
     fig_tru = triangle.corner(true_tri,labels=true_tri.columns,truths=truth.values,
                               show_titles=True,title_args={'fontsize':20},extents=extents_true)
     plt.suptitle('Triangle Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/true_fit_triangle_plot.png')
+    if identifier == 'raw':    
+        plt.savefig(path + '/raw_true_fit_triangle_plot.png')
+    else:
+        plt.savefig(path + '/residual_true_fit_triangle_plot.png')
     plt.clf()
     plt.close()
 
@@ -851,14 +1018,22 @@ def create_triangle_plots(path,sep,num_trials,
     plt.suptitle('Correlation Plot for Fits to the True Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
     ax = fig.add_subplot()
     corr_tru = sb.corrplot(true_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
-    plt.savefig(path + '/true_fit_correlation_plot.png')
+    if identifier == 'raw':        
+        plt.savefig(path + '/raw_true_fit_correlation_plot.png')
+    else:
+        plt.savefig(path + '/residual_true_fit_correlation_plot.png')
+        
     plt.clf()
     plt.close()
     
     fig_sim = triangle.corner(sim_tri,labels=sim_tri.columns,truths=truth.values,
                               show_titles=True,title_args={'fontsize':20},extents=extents_sim)
     plt.suptitle('Triangle Plot for Simultaneous Fitting to the Deblended Object\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/simult_fit_triangle_plot.png')
+    if identifier == 'raw':    
+        plt.savefig(path + '/raw_simult_fit_triangle_plot.png')
+    else:
+        plt.savefig(path + '/residual_simult_fit_triangle_plot.png')    
+ 
     plt.clf()
     plt.close()
 
@@ -866,14 +1041,22 @@ def create_triangle_plots(path,sep,num_trials,
     plt.suptitle('Correlation Plot for Simultaneous Fitting to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
     ax = fig.add_subplot()
     corr_sim = sb.corrplot(sim_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
-    plt.savefig(path + '/simult_fit_correlation_plot.png')
+    if identifier == 'raw':        
+        plt.savefig(path + '/raw_simult_fit_correlation_plot.png')
+    else:
+        plt.savefig(path + '/residual_simult_fit_correlation_plot.png')    
     plt.clf()
     plt.close()
     
     fig_dbl = triangle.corner(dbl_tri,labels=dbl_tri.columns,truths=truth.values,
                               show_titles=True,title_args={'fontsize':20},extents=extents_dbl)
     plt.suptitle('Triangle Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=42)
-    plt.savefig(path + '/deblend_fit_triangle_plot.png')
+
+    if identifier == 'raw':    
+        plt.savefig(path + '/raw_deblended_object_fit_triangle_plot.png')
+    else:
+        plt.savefig(path + '/residual_deblended_object_fit_triangle_plot.png')
+    
     plt.clf()
     plt.close()
 
@@ -881,7 +1064,11 @@ def create_triangle_plots(path,sep,num_trials,
     plt.suptitle('Correlation Plot for Fits to the Deblended Objects\n for a Separation of ' + str(sep) + '\" and ' + str(num_trials) + ' Trials',fontsize=22)
     ax = fig.add_subplot()
     corr_tru = sb.corrplot(dbl_tri,cbar=True,cmap=cmap,ax=ax,sig_stars=False,diag_names=False)
-    plt.savefig(path + '/deblend_fit_correlation_plot.png')
+    if identifier == 'raw':        
+        plt.savefig(path + '/raw_deblended_object_fit_correlation_plot.png')
+    else:
+        plt.savefig(path + '/residual_deblended_object_fit_correlation_plot.png')    
+    
     plt.clf()
     plt.close()
     
@@ -920,8 +1107,9 @@ def create_extents(factor,max_sigma,truth,randomize):
     return extents
 
 
-def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
-                       fs,leg_fs,min_offset,max_offset,psf_flag):
+def create_bias_plot(path,separation,means,s_means,pixel_scale,
+                     fs,leg_fs,min_offset,max_offset,psf_flag,identifier,
+                     truth):
     
     assert len(separation) >= 2, "Separation array must be larger than 1"
          
@@ -937,90 +1125,136 @@ def create_bias_plot_e(path,separation,means,s_means,pixel_scale,
                             pd.DataFrame(np.array([np.NAN,np.NAN,np.NAN]),columns=[str(value_2)],index=index)],
                            axis=1)
         return result
-           
-    print "\nSaving bias vs separation plot\n"   
-    
-    means_e1_a = means['means_e1_a']
-    means_e2_a = means['means_e2_a']
-    means_e1_b = means['means_e1_b']
-    means_e2_b = means['means_e2_b']
-    
-    s_means_e1_a = s_means['s_means_e1_a']
-    s_means_e2_a = s_means['s_means_e2_a']
-    s_means_e1_b = s_means['s_means_e1_b']
-    s_means_e2_b = s_means['s_means_e2_b']
+
+    print "\nSaving bias vs separation plots\n"   
+
+    if identifier == 'e1,e2':
+        df1_a = pd.DataFrame(means['means_e1_a'])
+        df2_a = pd.DataFrame(means['means_e2_a'])
+        df1_b = pd.DataFrame(means['means_e1_b'])
+        df2_b = pd.DataFrame(means['means_e2_b'])
+        
+        s_df1_a = pd.DataFrame(s_means['s_means_e1_a'])
+        s_df2_a = pd.DataFrame(s_means['s_means_e2_a'])
+        s_df1_b = pd.DataFrame(s_means['s_means_e1_b'])
+        s_df2_b = pd.DataFrame(s_means['s_means_e2_b'])
+        
+        title_arr = ['e1 On Object a', 'e2 On Object a', 'e1 On Object b', 'e2 On Object b']
+        if psf_flag: 
+            suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
+        else:
+            suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
+        
+    index=['Deblending','True','Simultaneous Fitting']
+    if identifier == 'flux,hlr':
+        df1_a = pd.DataFrame(means['means_flux_a'],index=index)
+        df2_a = pd.DataFrame(means['means_hlr_a'],index=index)
+        df1_b = pd.DataFrame(means['means_flux_b'],index=index)
+        df2_b = pd.DataFrame(means['means_hlr_b'],index=index)
+        
+        s_df1_a = pd.DataFrame(s_means['s_means_flux_a'],index=index)
+        s_df2_a = pd.DataFrame(s_means['s_means_hlr_a'],index=index)
+        s_df1_b = pd.DataFrame(s_means['s_means_flux_b'],index=index)
+        s_df2_b = pd.DataFrame(s_means['s_means_hlr_b'],index=index)
+        
+        title_arr = ['Flux On Object a', 'Hlr On Object a', 'Flux On Object b', 'Hlr On Object b']
+        if psf_flag: 
+            suptitle = 'Flux and Half-light Radius Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
+        else:
+            suptitle = 'Flux and Half-light Radius Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
+
+        
+    if identifier == 'x0,y0':
+        df1_a = pd.DataFrame(means['means_x0_a'],index=index)
+        df2_a = pd.DataFrame(means['means_y0_a'],index=index)
+        df1_b = pd.DataFrame(means['means_x0_b'],index=index)
+        df2_b = pd.DataFrame(means['means_y0_b'],index=index)
+        
+        s_df1_a = pd.DataFrame(s_means['s_means_x0_a'],index=index)
+        s_df2_a = pd.DataFrame(s_means['s_means_y0_a'],index=index)
+        s_df1_b = pd.DataFrame(s_means['s_means_x0_b'],index=index)
+        s_df2_b = pd.DataFrame(s_means['s_means_y0_b'],index=index)
+        
+        title_arr = ['x0 On Object a', 'y0 On Object a', 'x0 On Object b', 'y0 On Object b']
+
+        if psf_flag: 
+            suptitle = 'Centroid Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
+        else:
+            suptitle = 'Centroid Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
+
+        
     
     x_min = np.min(separation) - pixel_scale
     x_max = np.max(separation) + pixel_scale
     
-    max_mean, min_mean = obtain_min_max_df(means_e1_a,means_e2_a,means_e1_b,means_e2_b)
-    max_s_mean, min_s_mean = obtain_min_max_df(s_means_e1_a,s_means_e2_a,s_means_e1_b,s_means_e2_b)        
+    max_mean, min_mean = obtain_min_max_df(df1_a,df2_a,df1_b,df2_b)
+    max_s_mean, min_s_mean = obtain_min_max_df(s_df1_a,s_df2_a,s_df1_b,s_df2_b)        
     
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(18,16))
     
-    if psf_flag: 
-        suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for PSF Convolved Profiles'
-        min_sep = 1.6
-    else:
-        suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
-        min_sep = 1.4
+
     plt.suptitle(suptitle,fontsize=fs+6)
 
     ax1 = fig.add_subplot(gs[0:8,0])
-    title = 'e1 on Object a'
+    title = title_arr[0]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
-    f_m_e1_a = format_df(means_e1_a,x_min,x_max,means_e1_a.index)
-    f_s_m_e1_a = format_df(s_means_e1_a,x_min,x_max,s_means_e1_a.index)
-    ax1p = f_m_e1_a.T.plot(ax=ax1,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_a.T,legend=True)
+    f_df1_a = format_df(df1_a,x_min,x_max,df1_a.index)
+    f_s_df1_a = format_df(s_df1_a,x_min,x_max,s_df1_a.index)
+    ax1p = f_df1_a.T.plot(ax=ax1,style=['k--o','b--o','g--o'],yerr=f_s_df1_a.T,legend=True)
     ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax1p.axhline(y=0,ls='--',c='k',linestyle='--')
     
     ax2 = fig.add_subplot(gs[11:19,0])
-    title = 'e1 on Object b'
+    title = title_arr[2]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
-    f_m_e1_b = format_df(means_e1_b,x_min,x_max,means_e1_b.index)
-    f_s_m_e1_b = format_df(s_means_e1_b,x_min,x_max,s_means_e1_b.index)
-    ax2p = f_m_e1_b.T.plot(ax=ax2,style=['k--o','b--o','g--o'],yerr=f_s_m_e1_b.T,legend=True)
+    f_df1_b = format_df(df1_b,x_min,x_max,df1_b.index)
+    f_s_df1_b = format_df(s_df1_b,x_min,x_max,s_df1_b.index)
+    ax2p = f_df1_b.T.plot(ax=ax2,style=['k--o','b--o','g--o'],yerr=f_s_df1_b.T,legend=True)
     ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax2p.axhline(y=0,ls='--',c='k',linestyle='--')
     
     ax3 = fig.add_subplot(gs[0:8,1])
-    title = 'e2 on Object a'
+    title = title_arr[1]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
-    f_m_e2_a = format_df(means_e2_a,x_min,x_max,means_e2_a.index)
-    f_s_m_e2_a = format_df(s_means_e2_a,x_min,x_max,means_e2_a.index)
-    ax3p = f_m_e2_a.T.plot(ax=ax3,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_a.T,legend=True)
+    f_df2_a = format_df(df2_a,x_min,x_max,df2_a.index)
+    f_s_df2_a = format_df(s_df2_a,x_min,x_max,s_df2_a.index)
+    ax3p = f_df2_a.T.plot(ax=ax3,style=['k--o','b--o','g--o'],yerr=f_s_df2_a.T,legend=True)
     ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
     ax3p.axhline(y=0,ls='--',c='k',linestyle='--')
     
     ax4 = fig.add_subplot(gs[11:19,1])
-    title = 'e2 on Object b'
+    title = title_arr[3]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
     plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
-    f_m_e2_b = format_df(means_e2_b,x_min,x_max,means_e2_b.index)
-    f_s_m_e2_b = format_df(s_means_e2_b,x_min,x_max,s_means_e2_b.index)
-    ax4p = f_m_e2_b.T.plot(ax=ax4,style=['k--o','b--o','g--o'],yerr=f_s_m_e2_b.T,legend=True)
+    f_df2_b = format_df(df2_b,x_min,x_max,df2_b.index)
+    f_s_df2_b = format_df(s_df2_b,x_min,x_max,s_df2_b.index)
+    ax4p = f_df2_b.T.plot(ax=ax4,style=['k--o','b--o','g--o'],yerr=f_s_df2_b.T,legend=True)
     ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax4p.axhline(y=0,ls='--',c='k',linestyle='--')
     
     print "\nBias vs separation plot finished. Program terminated.\n\n"
-    plt.savefig(path + '/bias_vs_separation.png')
+    if identifier == 'e1,e2':        
+        plt.savefig(path + '/bias_vs_separation_ellipticity.png')
+    elif identifier == 'flux,hlr':
+        plt.savefig(path + '/bias_vs_separation_flux_hlr.png')
+    elif identifier == 'x0,y0':
+        plt.savefig(path + '/bias_vs_separation_x0_y0.png')
     plt.clf()
     plt.close()
     
