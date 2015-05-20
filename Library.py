@@ -146,7 +146,8 @@ def add_noise(image, noise_type=galsim.PoissonNoise, seed=None, sky_level=0):
         
 # Residual function for fitting one model object to the data.
 def residual_1_obj(param, data_image, sky_level, x_len, y_len, pixel_scale, 
-                   galtype,n):
+                   galtype,n,
+                   psf_flag,beta,fwhm_psf):
                        
     assert galtype != None
     flux = param['flux'].value
@@ -156,13 +157,15 @@ def residual_1_obj(param, data_image, sky_level, x_len, y_len, pixel_scale,
     x0 = param['x0'].value
     y0 = param['y0'].value
     image = create_galaxy(flux,hlr,e1,e2,x0,y0,galtype_gal=galtype,sersic_index=n,
-                          x_len=x_len,y_len=y_len,scale=pixel_scale)
+                          x_len=x_len,y_len=y_len,scale=pixel_scale,
+                          psf_flag=psf_flag,beta=beta,size_psf=fwhm_psf)
     
     return (image-data_image).array.ravel()
 
 # Residual function for fitting two objects to data.    
 def residual_func_simple(param, data_image, sky_level, x_len, y_len, pixel_scale, 
-                         galtype_a,n_a,galtype_b,n_b):
+                         galtype_a,n_a,galtype_b,n_b,
+                         psf_flag,beta,fwhm_psf):
         
     assert galtype_a != None
     assert galtype_b != None
@@ -180,10 +183,12 @@ def residual_func_simple(param, data_image, sky_level, x_len, y_len, pixel_scale
     x0_b = param['x0_b'].value
     y0_b = param['y0_b'].value
     image_a = create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,galtype_gal=galtype_a,sersic_index=n_a,
-                            x_len=x_len,y_len=y_len,scale=pixel_scale)
+                            x_len=x_len,y_len=y_len,scale=pixel_scale,
+                            psf_flag=psf_flag,beta=beta,size_psf=fwhm_psf)
                             
     image_b = create_galaxy(flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,galtype_gal=galtype_b,sersic_index=n_b,
-                            x_len=x_len,y_len=y_len,scale=pixel_scale)
+                            x_len=x_len,y_len=y_len,scale=pixel_scale,
+                            psf_flag=psf_flag,beta=beta,size_psf=fwhm_psf)
                         
     image = image_a + image_b
     
@@ -198,15 +203,18 @@ def run_2_galaxy_full_params_simple(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
                                     flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,n_b,
                                     psf_flag,beta,fwhm_psf,
                                     x_len,y_len,pixel_scale,galtype_a,galtype_b,seed_a,seed_b,seed_p,
-                                    add_noise_flag,sky_level):
+                                    add_noise_flag,sky_level,
+                                    method):
 
     image_a = create_galaxy(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,galtype_gal=galtype_a,sersic_index=n_a,
                             x_len=x_len,y_len=y_len,scale=pixel_scale,
-                            psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf)
+                            psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf,
+                            method=method,seed=seed_a)
                                 
     image_b = create_galaxy(flux_b,hlr_b,e1_b,e2_b,x0_b,y0_b,galtype_gal=galtype_b,sersic_index=n_b,
                             x_len=x_len,y_len=y_len,scale=pixel_scale,
-                            psf_flag=psf_flag, beta=beta, size_psf=fwhm_psf)
+                            psf_flag=psf_flag,beta=beta,size_psf=fwhm_psf,
+                            method=method,seed=seed_b)
     
     image_no_noise = image_a + image_b                        
     image = image_a + image_b
@@ -246,7 +254,8 @@ def run_2_galaxy_full_params_simple(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     
     
     # Extract params that minimize the difference of the data from the model.
-    result = lmfit.minimize(residual_func_simple, parameters, args=(image, sky_level, x_len, y_len, pixel_scale, galtype_a, n_a, galtype_b, n_b))                                   
+    result = lmfit.minimize(residual_func_simple, parameters, args=(image, sky_level, x_len, y_len, pixel_scale, galtype_a, n_a, galtype_b, n_b,
+                                                                    psf_flag, beta, fwhm_psf))                                   
                                                                       
     return image_no_noise, image_noise, result
 
@@ -333,9 +342,11 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
 
 
     # Extract params that minimize the difference of the data from the model.
-    result_a = lmfit.minimize(residual_1_obj, parameters_a, args=(children[0], sky_level, x_len, y_len, pixel_scale, sersic_func, n_a))
+    result_a = lmfit.minimize(residual_1_obj, parameters_a, args=(children[0], sky_level, x_len, y_len, pixel_scale, sersic_func, n_a,
+                                                                  psf_flag, beta, fwhm_psf))
 
-    result_b = lmfit.minimize(residual_1_obj, parameters_b, args=(children[1], sky_level, x_len, y_len, pixel_scale, sersic_func, n_a))
+    result_b = lmfit.minimize(residual_1_obj, parameters_b, args=(children[1], sky_level, x_len, y_len, pixel_scale, sersic_func, n_a,
+                                                                  psf_flag, beta, fwhm_psf))
 
     # Plot the data if necessary
     if plot != False:
@@ -408,9 +419,11 @@ def deblend_estimate(flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a,
     parameters_b.add('y0',value=p0_b_t[5])
 
     # Now estimate the shape for each true object
-    result_a_true = lmfit.minimize(residual_1_obj, parameters_a, args=(image_a_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_a))
+    result_a_true = lmfit.minimize(residual_1_obj, parameters_a, args=(image_a_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_a,
+                                                                       psf_flag, beta, fwhm_psf))
 
-    result_b_true = lmfit.minimize(residual_1_obj, parameters_b, args=(image_b_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_b))
+    result_b_true = lmfit.minimize(residual_1_obj, parameters_b, args=(image_b_t.array, sky_level, x_len, y_len, pixel_scale, sersic_func, n_b,
+                                                                       psf_flag, beta, fwhm_psf))
 
     results_true = pd.Series(np.array([result_a_true.params['flux'].value,
                                        result_a_true.params['hlr'].value,
@@ -438,7 +451,7 @@ def rearrange_lmfit_2obj(result):
                                'flux_b','hlr_b','e1_b','e2_b','x0_b','y0_b'])
     return arr
         
-def show_stats(results,runs):
+def obtain_stats(results,runs):
     data = pd.DataFrame(np.array([np.mean(results),np.std(results),np.std(results)/np.sqrt(runs)]),columns=results.columns)
     data.index = [r'$\bar\mu$',r'$\sigma$', r'$\sigma_{\mu}$']
     return data    
@@ -585,7 +598,8 @@ def run_batch(num_trials,
                                                                             flux_b,hlr_b,e1_b,e2_b,x0_b_r,y0_b_r,n_b,
                                                                             psf_flag,beta,fwhm_psf,
                                                                             x_len,y_len,pixel_scale,sersic_func,sersic_func,seed_1,seed_2,seed_3,
-                                                                            add_noise_flag,sky_level)                                                                                              
+                                                                            add_noise_flag,sky_level,
+                                                                            method)                                                                                              
         results_sim.append(rearrange_lmfit_2obj(lm_results))
 
         if est_centroid == True:
@@ -710,24 +724,25 @@ def run_over_separation(separation,
                     identifier,index):
                     
         """ Helper function for inserting data from runs. """
-                        
+
+        name_arr = ['Deblending', 'True', 'Simultaneous Fitting']
         if identifier == 'e1,e2':
-            dict1[str(sep)] = np.array([data_dbl['e1_a'][index],data_true['e1_a'][index],data_simult['e1_a'][index]])
-            dict2[str(sep)] = np.array([data_dbl['e2_a'][index],data_true['e2_a'][index],data_simult['e2_a'][index]])
-            dict3[str(sep)] = np.array([data_dbl['e1_b'][index],data_true['e1_b'][index],data_simult['e1_b'][index]])
-            dict4[str(sep)] = np.array([data_dbl['e2_b'][index],data_true['e2_b'][index],data_simult['e2_b'][index]])
+            dict1[str(sep)] = pd.Series(np.array([data_dbl['e1_a'][index],data_true['e1_a'][index],data_simult['e1_a'][index]]),index=name_arr)
+            dict2[str(sep)] = pd.Series(np.array([data_dbl['e2_a'][index],data_true['e2_a'][index],data_simult['e2_a'][index]]),index=name_arr)
+            dict3[str(sep)] = pd.Series(np.array([data_dbl['e1_b'][index],data_true['e1_b'][index],data_simult['e1_b'][index]]),index=name_arr)
+            dict4[str(sep)] = pd.Series(np.array([data_dbl['e2_b'][index],data_true['e2_b'][index],data_simult['e2_b'][index]]),index=name_arr)
 
         elif identifier == 'flux,hlr':
-            dict1[str(sep)] = np.array([data_dbl['flux_a'][index],data_true['flux_a'][index],data_simult['flux_a'][index]])
-            dict2[str(sep)] = np.array([data_dbl['hlr_a'][index],data_true['hlr_a'][index],data_simult['hlr_a'][index]])
-            dict3[str(sep)] = np.array([data_dbl['flux_b'][index],data_true['flux_b'][index],data_simult['flux_b'][index]])
-            dict4[str(sep)] = np.array([data_dbl['hlr_b'][index],data_true['hlr_b'][index],data_simult['hlr_b'][index]])
+            dict1[str(sep)] = pd.Series(np.array([data_dbl['flux_a'][index],data_true['flux_a'][index],data_simult['flux_a'][index]]),index=name_arr)
+            dict2[str(sep)] = pd.Series(np.array([data_dbl['hlr_a'][index],data_true['hlr_a'][index],data_simult['hlr_a'][index]]),index=name_arr)
+            dict3[str(sep)] = pd.Series(np.array([data_dbl['flux_b'][index],data_true['flux_b'][index],data_simult['flux_b'][index]]),index=name_arr)
+            dict4[str(sep)] = pd.Series(np.array([data_dbl['hlr_b'][index],data_true['hlr_b'][index],data_simult['hlr_b'][index]]),index=name_arr)
             
         elif identifier == 'x0,y0':
-            dict1[str(sep)] = np.array([data_dbl['x0_a'][index],data_true['x0_a'][index],data_simult['x0_a'][index]])
-            dict2[str(sep)] = np.array([data_dbl['y0_a'][index],data_true['y0_a'][index],data_simult['y0_a'][index]])
-            dict3[str(sep)] = np.array([data_dbl['x0_b'][index],data_true['x0_b'][index],data_simult['x0_b'][index]])
-            dict4[str(sep)] = np.array([data_dbl['y0_b'][index],data_true['y0_b'][index],data_simult['y0_b'][index]])
+            dict1[str(sep)] = pd.Series(np.array([data_dbl['x0_a'][index],data_true['x0_a'][index],data_simult['x0_a'][index]]),index=name_arr)
+            dict2[str(sep)] = pd.Series(np.array([data_dbl['y0_a'][index],data_true['y0_a'][index],data_simult['y0_a'][index]]),index=name_arr)
+            dict3[str(sep)] = pd.Series(np.array([data_dbl['x0_b'][index],data_true['x0_b'][index],data_simult['x0_b'][index]]),index=name_arr)
+            dict4[str(sep)] = pd.Series(np.array([data_dbl['y0_b'][index],data_true['y0_b'][index],data_simult['y0_b'][index]]),index=name_arr)
                    
     def create_dict():
         """ Helper function for creating four dictionaries. """
@@ -824,8 +839,7 @@ def run_over_separation(separation,
                                   
                                   
             alt_truth = truth.copy()
-            ipdb.set_trace()
-            alt_truth[0:12] = 0                                  
+            alt_truth[0:12] = 0
             create_triangle_plots(path,sep,num_trials,
                                   resid_deblend,data_dbl_resid,
                                   resid_true,data_true_resid,
@@ -1145,17 +1159,16 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
         else:
             suptitle = 'Ellipticity Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
         
-    index=['Deblending','True','Simultaneous Fitting']
     if identifier == 'flux,hlr':
-        df1_a = pd.DataFrame(means['means_flux_a'],index=index)
-        df2_a = pd.DataFrame(means['means_hlr_a'],index=index)
-        df1_b = pd.DataFrame(means['means_flux_b'],index=index)
-        df2_b = pd.DataFrame(means['means_hlr_b'],index=index)
+        df1_a = pd.DataFrame(means['means_flux_a'])
+        df2_a = pd.DataFrame(means['means_hlr_a'])
+        df1_b = pd.DataFrame(means['means_flux_b'])
+        df2_b = pd.DataFrame(means['means_hlr_b'])
         
-        s_df1_a = pd.DataFrame(s_means['s_means_flux_a'],index=index)
-        s_df2_a = pd.DataFrame(s_means['s_means_hlr_a'],index=index)
-        s_df1_b = pd.DataFrame(s_means['s_means_flux_b'],index=index)
-        s_df2_b = pd.DataFrame(s_means['s_means_hlr_b'],index=index)
+        s_df1_a = pd.DataFrame(s_means['s_means_flux_a'])
+        s_df2_a = pd.DataFrame(s_means['s_means_hlr_a'])
+        s_df1_b = pd.DataFrame(s_means['s_means_flux_b'])
+        s_df2_b = pd.DataFrame(s_means['s_means_hlr_b'])
         
         title_arr = ['Flux On Object a', 'Hlr On Object a', 'Flux On Object b', 'Hlr On Object b']
         if psf_flag: 
@@ -1165,15 +1178,15 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
 
         
     if identifier == 'x0,y0':
-        df1_a = pd.DataFrame(means['means_x0_a'],index=index)
-        df2_a = pd.DataFrame(means['means_y0_a'],index=index)
-        df1_b = pd.DataFrame(means['means_x0_b'],index=index)
-        df2_b = pd.DataFrame(means['means_y0_b'],index=index)
+        df1_a = pd.DataFrame(means['means_x0_a'])
+        df2_a = pd.DataFrame(means['means_y0_a'])
+        df1_b = pd.DataFrame(means['means_x0_b'])
+        df2_b = pd.DataFrame(means['means_y0_b'])
         
-        s_df1_a = pd.DataFrame(s_means['s_means_x0_a'],index=index)
-        s_df2_a = pd.DataFrame(s_means['s_means_y0_a'],index=index)
-        s_df1_b = pd.DataFrame(s_means['s_means_x0_b'],index=index)
-        s_df2_b = pd.DataFrame(s_means['s_means_y0_b'],index=index)
+        s_df1_a = pd.DataFrame(s_means['s_means_x0_a'])
+        s_df2_a = pd.DataFrame(s_means['s_means_y0_a'])
+        s_df1_b = pd.DataFrame(s_means['s_means_x0_b'])
+        s_df2_b = pd.DataFrame(s_means['s_means_y0_b'])
         
         title_arr = ['x0 On Object a', 'y0 On Object a', 'x0 On Object b', 'y0 On Object b']
 
@@ -1188,23 +1201,32 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     x_max = np.max(separation) + pixel_scale
     
     max_mean, min_mean = obtain_min_max_df(df1_a,df2_a,df1_b,df2_b)
-    max_s_mean, min_s_mean = obtain_min_max_df(s_df1_a,s_df2_a,s_df1_b,s_df2_b)        
+    max_s_mean, min_s_mean = obtain_min_max_df(s_df1_a,s_df2_a,s_df1_b,s_df2_b)
+
+    if identifier == 'flux,hlr':
+        max_mean_flux, min_mean_flux = obtain_min_max_df(df1_a,df1_b,df1_a,df1_b)
+        max_s_mean_flux, min_s_mean_flux = obtain_min_max_df(s_df1_a,s_df1_b,s_df1_a,s_df1_b)
+        max_mean_hlr, min_mean_hlr = obtain_min_max_df(df2_a,df2_b,df2_a,df2_b)
+        max_s_mean_hlr, min_s_mean_hlr = obtain_min_max_df(s_df2_a,s_df2_b,s_df2_a,s_df2_b)
+
     
     gs = gridspec.GridSpec(20,2)
     fig = plt.figure(figsize=(18,16))
-    
 
     plt.suptitle(suptitle,fontsize=fs+6)
 
     ax1 = fig.add_subplot(gs[0:8,0])
     title = title_arr[0]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if identifier == 'flux,hlr':
+        plt.ylim([(min_mean_flux - 2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
+    else:
+        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df1_a = format_df(df1_a,x_min,x_max,df1_a.index)
     f_s_df1_a = format_df(s_df1_a,x_min,x_max,s_df1_a.index)
-    ax1p = f_df1_a.T.plot(ax=ax1,style=['k--o','b--o','g--o'],yerr=f_s_df1_a.T,legend=True)
+    ax1p = f_df1_a.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df1_a.T,legend=True)
     ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax1p.axhline(y=0,ls='--',c='k',linestyle='--')
@@ -1212,12 +1234,15 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     ax2 = fig.add_subplot(gs[11:19,0])
     title = title_arr[2]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if identifier == 'flux,hlr':
+        plt.ylim([(min_mean_flux - 2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
+    else:
+        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df1_b = format_df(df1_b,x_min,x_max,df1_b.index)
     f_s_df1_b = format_df(s_df1_b,x_min,x_max,s_df1_b.index)
-    ax2p = f_df1_b.T.plot(ax=ax2,style=['k--o','b--o','g--o'],yerr=f_s_df1_b.T,legend=True)
+    ax2p = f_df1_b.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df1_b.T,legend=True)
     ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax2p.axhline(y=0,ls='--',c='k',linestyle='--')
@@ -1225,12 +1250,15 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     ax3 = fig.add_subplot(gs[0:8,1])
     title = title_arr[1]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if identifier == 'flux,hlr':
+        plt.ylim([(min_mean_hlr - 2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
+    else:
+        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df2_a = format_df(df2_a,x_min,x_max,df2_a.index)
     f_s_df2_a = format_df(s_df2_a,x_min,x_max,s_df2_a.index)
-    ax3p = f_df2_a.T.plot(ax=ax3,style=['k--o','b--o','g--o'],yerr=f_s_df2_a.T,legend=True)
+    ax3p = f_df2_a.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df2_a.T,legend=True)
     ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
     ax3p.axhline(y=0,ls='--',c='k',linestyle='--')
@@ -1238,12 +1266,15 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     ax4 = fig.add_subplot(gs[11:19,1])
     title = title_arr[3]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if identifier == 'flux,hlr':
+        plt.ylim([(min_mean_hlr - 2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
+    else:
+        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df2_b = format_df(df2_b,x_min,x_max,df2_b.index)
     f_s_df2_b = format_df(s_df2_b,x_min,x_max,s_df2_b.index)
-    ax4p = f_df2_b.T.plot(ax=ax4,style=['k--o','b--o','g--o'],yerr=f_s_df2_b.T,legend=True)
+    ax4p = f_df2_b.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df2_b.T,legend=True)
     ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
                 prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
     ax4p.axhline(y=0,ls='--',c='k',linestyle='--')

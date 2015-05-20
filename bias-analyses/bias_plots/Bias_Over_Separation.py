@@ -15,7 +15,6 @@ import Library
 import galsim
 import numpy as np
 import pandas as pd
-import os
 
 def run_bias_over_separation(directory,
                              psf,
@@ -102,7 +101,7 @@ def run_bias_over_separation(directory,
     right_diag = r_diag
     
     # Number of trials to use for each separation
-    num_trials = 1000
+    num_trials = 50
     num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
     min_sep = 1.0
     factor = 1.0
@@ -119,7 +118,7 @@ def run_bias_over_separation(directory,
     mod_val = 0.2*num_trials
     
     # Bool for saving triangle plots 
-    create_tri_plots = True
+    create_tri_plots = False
     
     # Create the string of information
     info_str = Library.join_info(directory,
@@ -175,9 +174,10 @@ def run_bias_over_separation(directory,
                                
 if __name__ == '__main__':
 
-    overhead_dir = '/nfs/slac/g/ki/ki19/jmeyers3/for_luis/'
+    #overhead_dir = '/nfs/slac/g/ki/ki19/jmeyers3/for_luis/'
+    overhead_dir = ''
 
-    psf = False
+    psf = True
     est_centroid = True
     random_pixel = True
     x_axis = True
