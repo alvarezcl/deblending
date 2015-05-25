@@ -1120,11 +1120,10 @@ def create_extents(factor,max_sigma,truth,randomize):
                
     return extents
 
-
 def create_bias_plot(path,separation,means,s_means,pixel_scale,
                      fs,leg_fs,min_offset,max_offset,psf_flag,identifier,
-                     truth):
-    
+                     truth,zoom):
+
     assert len(separation) >= 2, "Separation array must be larger than 1"
          
     def obtain_min_max_df(df_1,df_2,df_3,df_4):
@@ -1139,6 +1138,24 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
                             pd.DataFrame(np.array([np.NAN,np.NAN,np.NAN]),columns=[str(value_2)],index=index)],
                            axis=1)
         return result
+        
+    def insert_subplot(ax,df,s_df,min_sep):
+        alpha_arr = [0.99,0.99,0.99]
+        linestyle_arr = ['','','']
+        c_arr = ['b','g','r']
+        z_order = [5,3,4]
+        ms_arr = [2.3,3,2.3]
+        for i,col_key in enumerate(df.T):
+            domain = np.array(map(float,df.T[col_key].index.values)) + i*0.02
+            ax.errorbar(domain,df.T[col_key].values,yerr=s_df.T[col_key].values,
+                        alpha=alpha_arr[i],linestyle=linestyle_arr[i],
+                        label=col_key,c=c_arr[i],marker='o',markersize=ms_arr[i],zorder=z_order[i])
+                         
+        ax.axhline(y=0,ls='--',c='k',zorder=2,lw=0.5)
+        ax.axvline(x=min_sep,ls='--',c='c',zorder=1,lw=0.5)
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
+                  prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
+    
 
     print "\nSaving bias vs separation plots\n"   
 
@@ -1195,10 +1212,15 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
         else:
             suptitle = 'Centroid Bias for Objects a and b\n vs Separation for Profiles with Only Poisson Noise'
 
-        
+    suptitle = suptitle + '\n (Vertical Cyan Line Denotes Loss of Saddle Region in Image)'
+
+    if psf_flag:
+        min_sep = 1.6
+    else:
+        min_sep = 1.4    
     
     x_min = np.min(separation) - pixel_scale
-    x_max = np.max(separation) + pixel_scale
+    x_max = np.max(separation) + 1.5*pixel_scale
     
     max_mean, min_mean = obtain_min_max_df(df1_a,df2_a,df1_b,df2_b)
     max_s_mean, min_s_mean = obtain_min_max_df(s_df1_a,s_df2_a,s_df1_b,s_df2_b)
@@ -1218,74 +1240,80 @@ def create_bias_plot(path,separation,means,s_means,pixel_scale,
     ax1 = fig.add_subplot(gs[0:8,0])
     title = title_arr[0]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    if identifier == 'flux,hlr':
-        plt.ylim([(min_mean_flux - 2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
-    else:
-        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if not zoom:
+        if identifier == 'flux,hlr':
+            plt.ylim([(min_mean_flux - 2.2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
+        else:
+            plt.ylim([(min_mean - 2.2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
-    plt.ylabel('Residual',fontsize=fs)
+    plt.ylabel('Residual',fontsize=fs)    
+    
     f_df1_a = format_df(df1_a,x_min,x_max,df1_a.index)
     f_s_df1_a = format_df(s_df1_a,x_min,x_max,s_df1_a.index)
-    ax1p = f_df1_a.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df1_a.T,legend=True)
-    ax1p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
-                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax1p.axhline(y=0,ls='--',c='k',linestyle='--')
     
+    insert_subplot(ax1,f_df1_a,f_s_df1_a,min_sep)
+        
     ax2 = fig.add_subplot(gs[11:19,0])
     title = title_arr[2]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    if identifier == 'flux,hlr':
-        plt.ylim([(min_mean_flux - 2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
-    else:
-        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if not zoom:
+        if identifier == 'flux,hlr':
+            plt.ylim([(min_mean_flux - 2.2*min_s_mean_flux)*min_offset,(max_mean_flux + max_s_mean_flux)*max_offset])
+        else:
+            plt.ylim([(min_mean - 2.2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df1_b = format_df(df1_b,x_min,x_max,df1_b.index)
     f_s_df1_b = format_df(s_df1_b,x_min,x_max,s_df1_b.index)
-    ax2p = f_df1_b.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df1_b.T,legend=True)
-    ax2p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
-                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax2p.axhline(y=0,ls='--',c='k',linestyle='--')
-    
+
+    insert_subplot(ax2,f_df1_b,f_s_df1_b,min_sep)
+            
     ax3 = fig.add_subplot(gs[0:8,1])
     title = title_arr[1]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    if identifier == 'flux,hlr':
-        plt.ylim([(min_mean_hlr - 2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
-    else:
-        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if not zoom:
+        if identifier == 'flux,hlr':
+            plt.ylim([(min_mean_hlr - 2.2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
+        else:
+            plt.ylim([(min_mean - 2.2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df2_a = format_df(df2_a,x_min,x_max,df2_a.index)
     f_s_df2_a = format_df(s_df2_a,x_min,x_max,s_df2_a.index)
-    ax3p = f_df2_a.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df2_a.T,legend=True)
-    ax3p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
-                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)    
-    ax3p.axhline(y=0,ls='--',c='k',linestyle='--')
+    
+    insert_subplot(ax3,f_df2_a,f_s_df2_a,min_sep)
     
     ax4 = fig.add_subplot(gs[11:19,1])
     title = title_arr[3]
     plt.title('Bias vs Separation For ' + title,fontsize=fs)
-    if identifier == 'flux,hlr':
-        plt.ylim([(min_mean_hlr - 2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
-    else:
-        plt.ylim([(min_mean - 2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
+    if not zoom:
+        if identifier == 'flux,hlr':
+            plt.ylim([(min_mean_hlr - 2.2*min_s_mean_hlr)*min_offset,(max_mean_hlr + max_s_mean_hlr)*max_offset])
+        else:
+            plt.ylim([(min_mean - 2.2*min_s_mean)*min_offset,(max_mean + max_s_mean)*max_offset])
     plt.xlabel('Separation (arcsec)',fontsize=fs)
     plt.ylabel('Residual',fontsize=fs)
     f_df2_b = format_df(df2_b,x_min,x_max,df2_b.index)
     f_s_df2_b = format_df(s_df2_b,x_min,x_max,s_df2_b.index)
-    ax4p = f_df2_b.T.plot(style=['k--o','b--o','g--o'],yerr=f_s_df2_b.T,legend=True)
-    ax4p.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11),
-                prop={'size':leg_fs}, shadow=True, ncol=3, fancybox=True)
-    ax4p.axhline(y=0,ls='--',c='k',linestyle='--')
     
-    print "\nBias vs separation plot finished. Program terminated.\n\n"
-    if identifier == 'e1,e2':        
-        plt.savefig(path + '/bias_vs_separation_ellipticity.png')
-    elif identifier == 'flux,hlr':
-        plt.savefig(path + '/bias_vs_separation_flux_hlr.png')
-    elif identifier == 'x0,y0':
-        plt.savefig(path + '/bias_vs_separation_x0_y0.png')
+    insert_subplot(ax4,f_df2_b,f_s_df2_b,min_sep)
+    
+    if not zoom:
+        print '\nBias vs separation plot for ' + identifier +  ' finished. .\n\n'
+        if identifier == 'e1,e2':        
+            plt.savefig(path + '/bias_vs_separation_ellipticity.png')
+        elif identifier == 'flux,hlr':
+            plt.savefig(path + '/bias_vs_separation_flux_hlr.png')
+        elif identifier == 'x0,y0':
+            plt.savefig(path + '/bias_vs_separation_x0_y0.png')
+    else:
+        print '\nZoomed Bias vs separation plot for ' + identifier +  ' finished. .\n\n'
+        if identifier == 'e1,e2':        
+            plt.savefig(path + '/bias_vs_separation_ellipticity_zoomed.png')
+        elif identifier == 'flux,hlr':
+            plt.savefig(path + '/bias_vs_separation_flux_hlr_zoomed.png')
+        elif identifier == 'x0,y0':
+            plt.savefig(path + '/bias_vs_separation_x0_y0_zoomed.png')
     plt.clf()
     plt.close()
     

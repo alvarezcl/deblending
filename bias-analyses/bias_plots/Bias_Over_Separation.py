@@ -51,7 +51,7 @@ def run_bias_over_separation(directory,
     image_params = [pixel_scale,x_len,y_len]
     
     # Parameters for object a
-    flux_a = 25000 # counts
+    flux_a = 250000 # counts
     hlr_a = 1  # arcsec
     e1_a = 0.0 
     e2_a = 0.0
@@ -61,7 +61,7 @@ def run_bias_over_separation(directory,
     obj_a = [flux_a,hlr_a,e1_a,e2_a,x0_a,y0_a,n_a]
     
     # Parameters for object b
-    flux_b = 25000 # counts
+    flux_b = 250000 # counts
     hlr_b = hlr_a # arcsec
     e1_b = 0.0
     e2_b = 0.0
@@ -101,7 +101,7 @@ def run_bias_over_separation(directory,
     right_diag = r_diag
     
     # Number of trials to use for each separation
-    num_trials = 50
+    num_trials = 1000
     num_trial_arr = num_trials*np.ones(len(separation),dtype=np.int64)
     min_sep = 1.0
     factor = 1.0
@@ -118,7 +118,7 @@ def run_bias_over_separation(directory,
     mod_val = 0.2*num_trials
     
     # Bool for saving triangle plots 
-    create_tri_plots = False
+    create_tri_plots = True
     
     # Create the string of information
     info_str = Library.join_info(directory,
@@ -164,20 +164,28 @@ def run_bias_over_separation(directory,
     max_offset = 1.3
     Library.create_bias_plot(directory,separation,means_e,s_means_e,pixel_scale,
                              fs,leg_fs,min_offset,max_offset,psf_flag,'e1,e2',
-                             truth)
+                             truth,False)
     Library.create_bias_plot(directory,separation,means_fl_hlr,s_means_fl_hlr,pixel_scale,
                              fs,leg_fs,min_offset,max_offset,psf_flag,'flux,hlr',
-                             truth)
+                             truth,False)
     Library.create_bias_plot(directory,separation,means_x0_y0,s_means_x0_y0,pixel_scale,
                              fs,leg_fs,min_offset,max_offset,psf_flag,'x0,y0',
-                             truth)
+                             truth,False)
+    Library.create_bias_plot(directory,separation,means_e,s_means_e,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'e1,e2',
+                             truth,True)
+    Library.create_bias_plot(directory,separation,means_fl_hlr,s_means_fl_hlr,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'flux,hlr',
+                             truth,True)
+    Library.create_bias_plot(directory,separation,means_x0_y0,s_means_x0_y0,pixel_scale,
+                             fs,leg_fs,min_offset,max_offset,psf_flag,'x0,y0',
+                             truth,True)
                                
 if __name__ == '__main__':
 
-    #overhead_dir = '/nfs/slac/g/ki/ki19/jmeyers3/for_luis/'
-    overhead_dir = ''
+    overhead_dir = '/nfs/slac/g/ki/ki19/jmeyers3/for_luis/'
 
-    psf = True
+    psf = False
     est_centroid = True
     random_pixel = True
     x_axis = True
